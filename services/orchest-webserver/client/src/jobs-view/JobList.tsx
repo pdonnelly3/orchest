@@ -1,12 +1,12 @@
 import { PageTitle } from "@/components/common/PageTitle";
 import { useAppContext } from "@/contexts/AppContext";
-import { useAsync } from "@/hooks/useAsync";
+import { useCreateJob } from "@/hooks/useCreateJob";
 import { useCustomRoute } from "@/hooks/useCustomRoute";
 import { useFetchJobs } from "@/hooks/useFetchJobs";
 import { useFetchProject } from "@/hooks/useFetchProject";
 import { siteMap } from "@/routingConfig";
-import { EnvironmentValidationData, Job, JobStatus } from "@/types";
-import { checkGate, formatServerDateTime } from "@/utils/webserver-utils";
+import { JobStatus } from "@/types";
+import { formatServerDateTime } from "@/utils/webserver-utils";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import Box from "@mui/material/Box";
@@ -79,34 +79,9 @@ const createColumns = ({
   },
 ];
 
-const doCreateJob = async (
-  projectUuid: string,
-  newJobName: string,
-  pipelineUuid: string,
-  pipelineName: string
-) => {
-  await checkGate(projectUuid);
-  return fetcher<Job>("/catch/api-proxy/api/jobs/", {
-    method: "POST",
-    headers: HEADER.JSON,
-    body: JSON.stringify({
-      pipeline_uuid: pipelineUuid,
-      project_uuid: projectUuid,
-      pipeline_name: pipelineName, // ? Question: why pipeline_name is needed when pipeline_uuid is given?
-      name: newJobName,
-      draft: true,
-      pipeline_run_spec: {
-        run_type: "full",
-        uuids: [],
-      },
-      parameters: [],
-    }),
-  });
-};
-
 const JobList: React.FC<{ projectUuid: string }> = ({ projectUuid }) => {
   const { navigateTo } = useCustomRoute();
-  const { setAlert, setConfirm, requestBuild } = useAppContext();
+  const { setAlert, setConfirm } = useAppContext();
 
   const {
     data: jobs = [],
@@ -115,11 +90,6 @@ const JobList: React.FC<{ projectUuid: string }> = ({ projectUuid }) => {
     fetchJobs,
     setJobs,
   } = useFetchJobs(projectUuid);
-
-  const { run, error: createJobError } = useAsync<
-    void,
-    { reason: string; data: EnvironmentValidationData; message: string }
-  >();
 
   const [isEditingJobName, setIsEditingJobName] = React.useState(false);
 
@@ -190,46 +160,24 @@ const JobList: React.FC<{ projectUuid: string }> = ({ projectUuid }) => {
     );
   };
 
+  const { createJob: doCreateJob, error: createJobError } = useCreateJob();
   const createJob = React.useCallback(
     async (newJobName: string, pipelineUuid: string) => {
       setJobName(newJobName);
-      // TODO: in this part of the flow copy the pipeline directory to make
-      // sure the pipeline no longer changes
-
       const pipelineName = (pipelines || []).find(
         (pipeline) => pipeline.uuid === pipelineUuid
       )?.name;
 
-      return run(
-        doCreateJob(projectUuid, newJobName, pipelineUuid, pipelineName).then(
-          (job) => {
-            navigateTo(siteMap.editJob.path, {
-              query: {
-                projectUuid,
-                jobUuid: job.uuid,
-              },
-            });
-          }
-        )
-      );
+      return doCreateJob(newJobName, pipelineUuid, pipelineName);
     },
-    [pipelines, run, navigateTo, projectUuid]
+    [doCreateJob, pipelines]
   );
 
   React.useEffect(() => {
     if (createJobError) {
       setIsCreateDialogOpen(false);
-
-      if (createJobError.reason === "gate-failed") {
-        requestBuild(projectUuid, createJobError.data, "CreateJob", () => {
-          setIsCreateDialogOpen(true);
-          createJob(jobName, selectedPipeline);
-        });
-        return;
-      }
-      setAlert("Error", `Failed to create job. ${createJobError.message}`);
     }
-  }, [createJobError, setAlert, requestBuild, createJob]);
+  }, [createJobError]);
 
   const onRowClick = (e: React.MouseEvent, uuid: string) => {
     const foundJob = jobs.find((job) => job.uuid === uuid);
