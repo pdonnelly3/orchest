@@ -160,11 +160,7 @@ export function someParentHasClass(element, classname) {
 }
 
 // used in mdc-components only
-export function checkHeartbeat(url, retries?) {
-  if (retries === undefined) {
-    retries = 250;
-  }
-
+export function checkHeartbeat(url: string, retries = 250) {
   let tries = 0;
 
   let requestLambda = (resolve, reject) => {

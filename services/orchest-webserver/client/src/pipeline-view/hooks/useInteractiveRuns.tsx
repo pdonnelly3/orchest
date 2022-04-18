@@ -42,8 +42,7 @@ export const useInteractiveRuns = () => {
         // make sure stale opened files are reloaded in active
         // Jupyter instance
 
-        if (window.orchest.jupyter)
-          window.orchest.jupyter.reloadFilesFromDisk();
+        window.orchest.jupyter?.reloadFilesFromDisk();
 
         setPipelineRunning(false);
         setIsCancellingRun(false);

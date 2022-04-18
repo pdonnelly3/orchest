@@ -7,26 +7,32 @@ import { Controlled as CodeMirror } from "react-codemirror2";
 import ParamTree from "./ParamTree";
 
 interface IParameterEditorProps {
-  strategyJSON: StrategyJson;
+  strategyJSON: StrategyJson | undefined;
   pipelineName: string;
   readOnly?: boolean;
   onParameterChange?: (value: StrategyJson) => void;
 }
 
 const ParameterEditor: React.FC<IParameterEditorProps> = (props) => {
-  const [strategyJSON, setStrategyJson] = React.useState<StrategyJson>(
-    props.strategyJSON
-  );
-  const [activeParameter, setActiveParameter] = React.useState<{
-    key: string;
-    strategyJSONKey: string;
-  }>(undefined);
+  const [strategyJSON, setStrategyJson] = React.useState<
+    StrategyJson | undefined
+  >(props.strategyJSON);
+
+  const [activeParameter, setActiveParameter] = React.useState<
+    | {
+        key: string;
+        strategyJSONKey: string;
+      }
+    | undefined
+  >(undefined);
 
   const [codeMirrorValue, setCodeMirrorValue] = React.useState("");
 
   const editParameter = (key: string, strategyJSONKey: string) => {
     setActiveParameter({ key, strategyJSONKey });
-    setCodeMirrorValue(strategyJSON[strategyJSONKey].parameters[key]);
+    setCodeMirrorValue(
+      strategyJSON ? strategyJSON[strategyJSONKey].parameters[key] : ""
+    );
   };
 
   const isJsonValid = React.useMemo(() => {
@@ -61,16 +67,22 @@ const ParameterEditor: React.FC<IParameterEditorProps> = (props) => {
                 }}
                 onBeforeChange={(editor, data, value) => {
                   setStrategyJson((json) => {
-                    json[activeParameter.strategyJSONKey].parameters[
-                      activeParameter.key
-                    ] = value;
+                    if (json) {
+                      json[activeParameter.strategyJSONKey].parameters[
+                        activeParameter.key
+                      ] = value;
+                    }
                     setCodeMirrorValue(value);
 
                     // only call onParameterChange if valid JSON Array
                     // put this block into event-loop to speed up the typing
                     window.setTimeout(() => {
                       try {
-                        if (Array.isArray(JSON.parse(value))) {
+                        if (
+                          Array.isArray(JSON.parse(value)) &&
+                          json &&
+                          props.onParameterChange
+                        ) {
                           props.onParameterChange(json);
                         }
                       } catch {

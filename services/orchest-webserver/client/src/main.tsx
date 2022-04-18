@@ -15,7 +15,7 @@ declare global {
   }
 
   interface Window {
-    orchest: { jupyter: Jupyter };
+    orchest: { jupyter: Jupyter | undefined };
     Intercom: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   }
 }

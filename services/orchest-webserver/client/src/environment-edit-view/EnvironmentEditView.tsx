@@ -152,7 +152,7 @@ const EnvironmentEditView: React.FC = () => {
       // Saving an environment will invalidate the Jupyter <iframe>
       // TODO: perhaps this can be fixed with coordination between JLab +
       // Enterprise Gateway team.
-      window.orchest.jupyter.unload();
+      window.orchest.jupyter?.unload();
 
       try {
         const environmentUuidForUpdateOrCreate = environment?.uuid || "new";

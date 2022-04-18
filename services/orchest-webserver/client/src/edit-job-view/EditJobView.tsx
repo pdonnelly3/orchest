@@ -233,15 +233,9 @@ const EditJobView: React.FC = () => {
 
   const [runJobLoading, setRunJobLoading] = React.useState(false);
 
-  const {
-    data: job,
-    error: fetchJobError,
-    isValidating: isFetchingJob,
-    mutate: setJob,
-  } = useSWR<Job>(
-    jobUuid ? `/catch/api-proxy/api/jobs/${jobUuid}` : null,
-    fetcher
-  );
+  const { data: job, isValidating: isFetchingJob, mutate: setJob } = useSWR<
+    Job
+  >(jobUuid ? `/catch/api-proxy/api/jobs/${jobUuid}` : null, fetcher);
 
   const { pipelineJson, isFetchingPipelineJson } = useFetchPipelineJson(
     projectUuid && job
@@ -250,7 +244,7 @@ const EditJobView: React.FC = () => {
           pipelineUuid: job.pipeline_uuid,
           projectUuid,
         }
-      : undefined
+      : null
   );
 
   const { data: projectSnapshotSize = 0 } = useFetchProject({
@@ -260,7 +254,9 @@ const EditJobView: React.FC = () => {
 
   const isLoading = isFetchingJob || isFetchingPipelineJson;
 
-  const [strategyJson, setStrategyJson] = React.useState<StrategyJson>(null);
+  const [strategyJson, setStrategyJson] = React.useState<
+    StrategyJson | undefined
+  >(undefined);
 
   React.useEffect(() => {
     if (job) {
@@ -317,7 +313,9 @@ const EditJobView: React.FC = () => {
     setAsSaved(false);
   };
 
-  const validateJobConfig = () => {
+  const validateJobConfig = ():
+    | { pass: true }
+    | { pass: false; selectView: number; reason: string } => {
     // At least one selected pipeline run.
     if (selectedRuns.length === 0) {
       return {
