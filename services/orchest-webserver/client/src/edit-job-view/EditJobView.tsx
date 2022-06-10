@@ -135,9 +135,7 @@ const parseParameters = (
 
 type PipelineRunRow = { uuid: string; spec: string; details: React.ReactNode };
 
-const generatePipelineRuns = (
-  strategyJSON: Record<string, { parameters: Record<string, string> }>
-) => {
+const generatePipelineRuns = (strategyJSON: StrategyJson) => {
   // flatten and JSONify strategyJSON to prep data structure for later
   const flatParameters = flattenStrategyJson(strategyJSON);
   const pipelineRuns: Record<
@@ -209,7 +207,11 @@ const EditJobView: React.FC = () => {
   const [pipelineRuns, setPipelineRuns] = React.useState<
     Record<string, Json>[]
   >([]);
-  const [parameterHash, setParameterHash] = React.useState(uuidv4());
+  const [parameterHash, reinitiateParameters] = React.useReducer(
+    () => uuidv4(),
+    uuidv4()
+  );
+
   const [selectedRuns, setSelectedRuns] = React.useState<string[]>([]);
 
   const [runJobLoading, setRunJobLoading] = React.useState(false);
@@ -235,43 +237,41 @@ const EditJobView: React.FC = () => {
     StrategyJson | undefined
   >(undefined);
 
-  const setNewStrategyJson = (
-    strategyJson: StrategyJson | undefined,
-    pipelineJson: PipelineJson | undefined,
-    skipUnmount?: boolean,
-    selectedIndices?: string[] | undefined
-  ) => {
-    // This function has some side effects to update
-    // pipelineRuns
-    // pipelineRunRows
-    // and it optionally force re-mounts the controlled
-    // component ParameterEditor
-    if (!strategyJson) {
-      return;
-    }
-    if (!pipelineJson) {
-      return;
-    }
+  const setNewStrategyJson = React.useCallback(
+    (
+      strategyJson: StrategyJson | undefined,
+      pipelineJson: PipelineJson | undefined,
+      skipUnmount?: boolean,
+      selectedIndices?: string[] | undefined
+    ) => {
+      // This function has some side effects to update
+      // pipelineRuns
+      // pipelineRunRows
+      // and it optionally force re-mounts the controlled
+      // component ParameterEditor
+      if (!strategyJson || !pipelineJson) {
+        return;
+      }
 
-    const newPipelineRuns = generatePipelineRuns(strategyJson);
-    const newPipelineRunRows = generatePipelineRunRows(
-      pipelineJson.name,
-      newPipelineRuns
-    );
+      const newPipelineRuns = generatePipelineRuns(strategyJson);
+      const newPipelineRunRows = generatePipelineRunRows(
+        pipelineJson.name,
+        newPipelineRuns
+      );
 
-    setStrategyJson(strategyJson);
-    setPipelineRuns(newPipelineRuns);
-    setPipelineRunRows(newPipelineRunRows);
-    setSelectedRuns(
-      selectedIndices
-        ? selectedIndices
-        : newPipelineRunRows.map((row) => row.uuid)
-    );
+      setStrategyJson(strategyJson);
+      setPipelineRuns(newPipelineRuns);
+      setPipelineRunRows(newPipelineRunRows);
+      setSelectedRuns(
+        selectedIndices
+          ? selectedIndices
+          : newPipelineRunRows.map((row) => row.uuid)
+      );
 
-    if (skipUnmount !== true) {
-      setParameterHash(uuidv4());
-    }
-  };
+      if (skipUnmount !== true) reinitiateParameters();
+    },
+    []
+  );
 
   const [
     loadedStrategyJsonText,
@@ -293,7 +293,7 @@ const EditJobView: React.FC = () => {
   }, [job, strategyJson, pipelineJson, setAsSaved]);
 
   const setParamConfigByFile = React.useCallback(
-    (params: {
+    async (params: {
       paramConfigPath: string;
       pipelineUuid: string;
       projectUuid: string;
@@ -310,41 +310,26 @@ const EditJobView: React.FC = () => {
         reservedKey,
       } = params;
 
-      return new Promise<void>(async (resolve, reject) => {
-        try {
-          const paramConfig = await fetchParamConfig({
-            paramPath: paramConfigPath,
-            pipelineUuid,
-            projectUuid,
-            jobUuid,
-          });
-
-          let strategyJson = generateStrategyJsonFromParamJsonFile(
-            paramConfig,
-            pipelineJson,
-            reservedKey
-          );
-          setNewStrategyJson(strategyJson, pipelineJson);
-          setLoadedStrategyJsonText(
-            <span>
-              Loaded job parameters file <Code>{paramConfigPath}</Code>.
-            </span>
-          );
-          resolve();
-        } catch (error) {
-          if (error.status !== 404) {
-            console.error(error);
-          }
-          reject();
-        }
+      const paramConfig = await fetchParamConfig({
+        paramPath: paramConfigPath,
+        pipelineUuid,
+        projectUuid,
+        jobUuid,
       });
+
+      let strategyJson = generateStrategyJsonFromParamJsonFile(
+        paramConfig,
+        pipelineJson,
+        reservedKey
+      );
+      setNewStrategyJson(strategyJson, pipelineJson);
+      setLoadedStrategyJsonText(
+        <span>
+          Loaded job parameters file <Code>{paramConfigPath}</Code>.
+        </span>
+      );
     },
-    [
-      generateStrategyJsonFromParamJsonFile,
-      setNewStrategyJson,
-      setLoadedStrategyJsonText,
-      fetchParamConfig,
-    ]
+    [setNewStrategyJson, setLoadedStrategyJsonText]
   );
 
   const loadDefaultOrExistingParameterStrategy = React.useCallback(
@@ -368,7 +353,7 @@ const EditJobView: React.FC = () => {
           : undefined
       );
     },
-    [config?.PIPELINE_PARAMETERS_RESERVED_KEY]
+    [config?.PIPELINE_PARAMETERS_RESERVED_KEY, setNewStrategyJson]
   );
 
   React.useEffect(() => {
@@ -557,7 +542,7 @@ const EditJobView: React.FC = () => {
     setIsLoadParametersDialogOpen(false);
   };
 
-  const handleLoadParameters = (value) => {
+  const handleLoadParameters = (value: string) => {
     if (!job || !config || !pipelineJson || !projectUuid) {
       return;
     }

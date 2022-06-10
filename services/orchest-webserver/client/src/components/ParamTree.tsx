@@ -1,4 +1,5 @@
 import { useAppContext } from "@/contexts/AppContext";
+import { Strategy, StrategyJson } from "@/types";
 import {
   Alert,
   AlertDescription,
@@ -6,13 +7,14 @@ import {
   IconLightBulbOutline,
   Link,
 } from "@orchest/design-system";
+import classNames from "classnames";
 import isString from "lodash.isstring";
 import React from "react";
 
 export interface IParamTreeProps {
   pipelineName: string;
-  editParameter?: (parameterKey: any, key: any) => void;
-  strategyJSON: any;
+  editParameter?: (parameterKey: string, key: string) => void;
+  strategyJSON: StrategyJson;
   activeParameter:
     | {
         key: string;
@@ -43,128 +45,121 @@ export const NoParameterAlert = () => {
   );
 };
 
-const ParamTree: React.FC<IParamTreeProps> = (props) => {
-  console.log(props);
-  const { config } = useAppContext();
+const truncateParameterValue = (value: string | unknown, maxLength = 50) => {
+  const stringifiedValue = !isString(value) ? JSON.stringify(value) : value;
 
-  const truncateParameterValue = (value) => {
-    // stringify non string values
-    if (!isString(value)) {
-      value = JSON.stringify(value);
-    }
+  return stringifiedValue.length > maxLength
+    ? stringifiedValue.substring(0, maxLength - 1) + "…"
+    : stringifiedValue;
+};
 
-    let maxLength = 50;
-    return value.length > maxLength
-      ? value.substring(0, maxLength - 1) + "…"
-      : value;
-  };
-
-  const onEditParameter = (parameterKey, key) => {
-    if (props.editParameter) {
-      props.editParameter(parameterKey, key);
-    }
-  };
-
-  const generateParameterElement = (stepStrategy, includeTitle?) => {
-    let elements = new Array<React.ReactElement>();
-
-    if (includeTitle === undefined) {
-      includeTitle = true;
-    }
-
-    if (includeTitle && stepStrategy.title && stepStrategy.title.length > 0) {
-      elements.push(<b key={stepStrategy.key}>{stepStrategy.title}</b>);
-    }
-
-    for (let parameterKey in stepStrategy.parameters) {
-      let parameterValueClasses = ["parameter-value"];
-
-      if (props.editParameter) {
-        parameterValueClasses.push("editable");
+const Parameters = ({
+  activeParameter,
+  editParameter,
+  stepStrategy,
+  includeTitle = true,
+  ...props
+}: {
+  activeParameter:
+    | {
+        key: string;
+        strategyJSONKey: string;
       }
+    | undefined;
+  editParameter?: (parameterKey: string, key: string) => void;
+  stepStrategy: Strategy;
+  includeTitle?: boolean;
+  "data-test-id": string;
+}) => {
+  const title =
+    includeTitle && stepStrategy.title && stepStrategy.title.length > 0
+      ? stepStrategy.title
+      : undefined;
 
-      elements.push(
-        <div
-          key={parameterKey + "-" + stepStrategy.key}
-          className="parameter-row"
-          data-test-id={
-            props["data-test-id"] + `-parameter-row-${parameterKey}`
-          }
-        >
-          <div className="parameter-key">{parameterKey}:</div>
+  return (
+    <>
+      {title && <b key={stepStrategy.key}>{title}</b>}
+      {Object.entries(stepStrategy.parameters).map(([parameterKey, value]) => {
+        const isActive =
+          activeParameter?.key === parameterKey &&
+          activeParameter?.strategyJSONKey == stepStrategy.key;
+        return (
           <div
-            className={parameterValueClasses.join(" ")}
-            onClick={() => onEditParameter(parameterKey, stepStrategy.key)}
+            key={`${parameterKey}-${stepStrategy.key}`}
+            className="parameter-row"
             data-test-id={
-              props["data-test-id"] + `-parameter-row-${parameterKey}-value`
+              props["data-test-id"] + `-parameter-row-${parameterKey}`
             }
           >
-            <span
-              style={{
-                fontWeight:
-                  props.activeParameter &&
-                  props.activeParameter.key == parameterKey &&
-                  props.activeParameter.strategyJSONKey == stepStrategy.key
-                    ? "bold"
-                    : "normal",
-              }}
+            <div className="parameter-key">{parameterKey}:</div>
+            <div
+              className={classNames(
+                "parameter-value",
+                editParameter ? "editable" : undefined
+              )}
+              onClick={() => editParameter?.(parameterKey, stepStrategy.key)}
+              data-test-id={`${props["data-test-id"]}-parameter-row-${parameterKey}-value`}
             >
-              {truncateParameterValue(stepStrategy.parameters[parameterKey])}
-            </span>
+              <span
+                style={{
+                  fontWeight: isActive ? "bold" : "normal",
+                }}
+              >
+                {truncateParameterValue(value)}
+              </span>
+            </div>
           </div>
-        </div>
-      );
-    }
-
-    return elements;
-  };
-
-  const generateParameterTree = (strategyJSON) => {
-    let pipelineParameterElement;
-    let stepParameterElements = [];
-
-    // First list pipeline parameters
-    let pipelineParameterization =
-      strategyJSON[config?.PIPELINE_PARAMETERS_RESERVED_KEY || ""];
-    if (pipelineParameterization) {
-      pipelineParameterElement = generateParameterElement(
-        pipelineParameterization,
-        false
-      );
-    }
-
-    for (const stepUUID in strategyJSON) {
-      if (stepUUID == config?.PIPELINE_PARAMETERS_RESERVED_KEY) {
-        continue;
-      }
-
-      stepParameterElements = stepParameterElements.concat(
-        generateParameterElement(strategyJSON[stepUUID])
-      );
-    }
-
-    return [pipelineParameterElement, stepParameterElements];
-  };
-
-  let [pipelineParameterElement, stepParameterElements] = generateParameterTree(
-    props.strategyJSON
+        );
+      })}
+    </>
   );
+};
+
+const ParamTree: React.FC<IParamTreeProps> = (props) => {
+  const { config } = useAppContext();
+  const { editParameter, activeParameter, strategyJSON } = props;
+
+  let pipelineParameters =
+    strategyJSON[config?.PIPELINE_PARAMETERS_RESERVED_KEY || ""];
+
+  const stepStrategies = Object.entries(strategyJSON)
+    .filter(
+      ([stepUuid]) => stepUuid !== config?.PIPELINE_PARAMETERS_RESERVED_KEY
+    )
+    .map(([, stepStrategy]) => stepStrategy);
 
   return (
     <div className="parameter-tree">
       {Object.keys(props.strategyJSON).length == 0 && <NoParameterAlert />}
 
-      {pipelineParameterElement !== undefined && (
+      {pipelineParameters && (
         <div className="param-block">
           <h3>Pipeline: {props.pipelineName}</h3>
-          {pipelineParameterElement}
+          <Parameters
+            editParameter={editParameter}
+            activeParameter={activeParameter}
+            stepStrategy={pipelineParameters}
+            data-test-id={props["data-test-id"]}
+          />
         </div>
       )}
 
-      {stepParameterElements.length > 0 && (
+      {stepStrategies.length > 0 && (
         <div className="param-block">
           <h3>Steps</h3>
-          <div className="step-params">{stepParameterElements}</div>
+          <div className="step-params">
+            {stepStrategies.map((stepStrategy) => {
+              return (
+                <Parameters
+                  key={stepStrategy?.key}
+                  editParameter={editParameter}
+                  activeParameter={activeParameter}
+                  stepStrategy={stepStrategy}
+                  data-test-id={props["data-test-id"]}
+                />
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
