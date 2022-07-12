@@ -12,6 +12,7 @@ import {
   originTransformScaling,
   scaleCorrected,
 } from "../common";
+import { useInteractiveRunsContext } from "../contexts/InteractiveRunsContext";
 import { usePipelineCanvasContext } from "../contexts/PipelineCanvasContext";
 import { usePipelineEditorContext } from "../contexts/PipelineEditorContext";
 import { useFileManagerContext } from "../file-manager/FileManagerContext";
@@ -21,7 +22,6 @@ import {
   PipelineEditorContextMenu,
   useContextMenu,
 } from "../hooks/useContextMenu";
-import { RunStepsType } from "../hooks/useInteractiveRuns";
 import { INITIAL_PIPELINE_POSITION } from "../hooks/usePipelineCanvasState";
 import { STEP_HEIGHT, STEP_WIDTH } from "../PipelineStep";
 import { PipelineCanvas } from "./PipelineCanvas";
@@ -58,7 +58,6 @@ export const PipelineViewport = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
     canvasFuncRef: React.MutableRefObject<CanvasFunctions | undefined>;
-    executeRun: (uuids: string[], type: RunStepsType) => Promise<void>;
     autoLayoutPipeline;
     isContextMenuOpenState: [
       boolean,
@@ -70,7 +69,6 @@ export const PipelineViewport = React.forwardRef<
     children,
     className,
     canvasFuncRef,
-    executeRun,
     autoLayoutPipeline,
     isContextMenuOpenState,
     style,
@@ -78,6 +76,7 @@ export const PipelineViewport = React.forwardRef<
   },
   ref
 ) {
+  const { executeRun } = useInteractiveRunsContext();
   const { dragFile } = useFileManagerContext();
   const {
     disabled,
