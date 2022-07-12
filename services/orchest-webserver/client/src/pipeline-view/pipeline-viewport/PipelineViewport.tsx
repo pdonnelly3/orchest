@@ -14,6 +14,7 @@ import {
 } from "../common";
 import { useInteractiveRunsContext } from "../contexts/InteractiveRunsContext";
 import { usePipelineCanvasContext } from "../contexts/PipelineCanvasContext";
+import { usePipelineDataContext } from "../contexts/PipelineDataContext";
 import { usePipelineEditorContext } from "../contexts/PipelineEditorContext";
 import { useFileManagerContext } from "../file-manager/FileManagerContext";
 import { useValidateFilesOnSteps } from "../file-manager/useValidateFilesOnSteps";
@@ -78,15 +79,13 @@ export const PipelineViewport = React.forwardRef<
 ) {
   const { executeRun } = useInteractiveRunsContext();
   const { dragFile } = useFileManagerContext();
+  const { pipelineCwd, isReadOnly, environments } = usePipelineDataContext();
   const {
     disabled,
     eventVars,
     trackMouseMovement,
     dispatch,
-    pipelineCwd,
-    isReadOnly,
     newConnection,
-    environments,
     pipelineCanvasRef,
     getOnCanvasPosition,
   } = usePipelineEditorContext();

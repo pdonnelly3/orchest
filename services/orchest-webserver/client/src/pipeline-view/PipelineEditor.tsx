@@ -3,11 +3,9 @@ import { useAppContext } from "@/contexts/AppContext";
 import { useCustomRoute } from "@/hooks/useCustomRoute";
 import { useHasChanged } from "@/hooks/useHasChanged";
 import { siteMap } from "@/routingConfig";
-import type { Connection, PipelineJson, Step, StepsDict } from "@/types";
+import type { Connection, Step } from "@/types";
 import { getOffset } from "@/utils/jquery-replacement";
 import { layoutPipeline } from "@/utils/pipeline-layout";
-import { resolve } from "@/utils/resolve";
-import { validatePipeline } from "@/utils/webserver-utils";
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import CropFreeIcon from "@mui/icons-material/CropFree";
@@ -15,7 +13,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
   activeElementIsInput,
-  fetcher,
   hasValue,
   joinRelativePaths,
 } from "@orchest/lib-utils";
@@ -24,10 +21,11 @@ import { BackToJobButton } from "./BackToJobButton";
 import { CancelInteractiveRunButton } from "./CancelInteractiveRunButton";
 import { getNodeCenter, updatePipelineJson } from "./common";
 import { ConnectionDot } from "./ConnectionDot";
+import { usePipelineDataContext } from "./contexts/PipelineDataContext";
 import { usePipelineEditorContext } from "./contexts/PipelineEditorContext";
 import { useHotKeysInPipelineEditor } from "./hooks/useHotKeysInPipelineEditor";
 import { useOpenNoteBook } from "./hooks/useOpenNoteBook";
-import { useSavingIndicator } from "./hooks/useSavingIndicator";
+import { useSavePipelineJson } from "./hooks/useSavePipelineJson";
 import { InteractiveRunButton } from "./InteractiveRunButton";
 import { PipelineCanvasHeaderBar } from "./pipeline-canvas-header-bar/PipelineCanvasHeaderBar";
 import { PipelineConnection } from "./pipeline-connection/PipelineConnection";
@@ -45,7 +43,7 @@ const deleteStepMessage =
   "A deleted step and its logs cannot be recovered once deleted, are you sure you want to proceed?";
 
 export const PipelineEditor = () => {
-  const { setAlert, setConfirm } = useAppContext();
+  const { setConfirm } = useAppContext();
 
   const { projectUuid, pipelineUuid, jobUuid, navigateTo } = useCustomRoute();
 
@@ -56,6 +54,8 @@ export const PipelineEditor = () => {
     [projectUuid, jobUuid, navigateTo]
   );
 
+  const { pipelineCwd, runUuid, isReadOnly } = usePipelineDataContext();
+
   const {
     eventVars,
     dispatch,
@@ -63,25 +63,18 @@ export const PipelineEditor = () => {
     pipelineCanvasRef,
     pipelineViewportRef,
     newConnection,
-    pipelineCwd,
     pipelineJson,
     setPipelineJson,
     hash,
-    fetchDataError,
-    runUuid,
     zIndexMax,
-    isReadOnly,
     instantiateConnection,
     metadataPositions,
-    session,
   } = usePipelineEditorContext();
 
   const isAllowedToRun =
     !isReadOnly &&
     eventVars.selectedSteps.length > 0 &&
     !eventVars.stepSelector.active;
-
-  const isSessionRunning = session?.status === "RUNNING";
 
   const openNotebook = useOpenNoteBook();
 
@@ -109,91 +102,11 @@ export const PipelineEditor = () => {
     // but we also need real-time canvasOffset for calculation
   }, [JSON.stringify(canvasOffset), eventVars.scaleFactor]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { disableHotKeys, enableHotKeys } = useHotKeysInPipelineEditor(
-    isSessionRunning
-  );
+  const { disableHotKeys, enableHotKeys } = useHotKeysInPipelineEditor();
 
   const [isDeletingSteps, setIsDeletingSteps] = React.useState(false);
 
-  React.useEffect(() => {
-    // This case is hit when a user tries to load a pipeline that belongs
-    // to a run that has not started yet. The project files are only
-    // copied when the run starts. Before start, the pipeline.json thus
-    // cannot be found. Alert the user about missing pipeline and return
-    // to JobView.
-    if (fetchDataError)
-      setAlert(
-        "Error",
-        jobUuid
-          ? "The .orchest pipeline file could not be found. This pipeline run has not been started. Returning to Job view."
-          : "Could not load pipeline",
-        (resolve) => {
-          resolve(true);
-          if (jobUuid) {
-            returnToJob();
-          } else {
-            navigateTo(siteMap.pipeline.path, { query: { projectUuid } });
-          }
-
-          return true;
-        }
-      );
-  }, [fetchDataError, returnToJob, setAlert, navigateTo, projectUuid, jobUuid]);
-
-  const setOngoingSaves = useSavingIndicator();
-
-  const savePipelineJson = React.useCallback(
-    async (data: PipelineJson) => {
-      if (!data || isReadOnly) return;
-      setOngoingSaves((current) => current + 1);
-
-      let formData = new FormData();
-      formData.append("pipeline_json", JSON.stringify(data));
-      const response = await resolve(() =>
-        fetcher(`/async/pipelines/json/${projectUuid}/${pipelineUuid}`, {
-          method: "POST",
-          body: formData,
-        })
-      );
-
-      if (response.status === "rejected") {
-        // currently step details doesn't do form field validation properly
-        // don't apply setAlert here before the form validation is implemented
-        console.error(`Failed to save pipeline. ${response.error.message}`);
-      }
-
-      setOngoingSaves((current) => current - 1);
-    },
-    [isReadOnly, projectUuid, pipelineUuid, setOngoingSaves]
-  );
-
-  const mergeStepsIntoPipelineJson = React.useCallback(
-    (steps?: StepsDict) => {
-      if (!pipelineJson) return;
-      if (isReadOnly) {
-        console.error("savePipeline should be un-callable in readOnly mode.");
-        return;
-      }
-
-      const updatedPipelineJson = steps
-        ? updatePipelineJson(pipelineJson, steps)
-        : pipelineJson;
-
-      // validate pipelineJSON
-      let pipelineValidation = validatePipeline(updatedPipelineJson);
-
-      if (!pipelineValidation.valid) {
-        // Just show the first error
-        setAlert("Error", pipelineValidation.errors[0]);
-        return;
-      }
-
-      setPipelineJson(updatedPipelineJson);
-
-      return updatedPipelineJson;
-    },
-    [isReadOnly, setAlert, pipelineJson, setPipelineJson]
-  );
+  useSavePipelineJson();
 
   const onMouseUpPipelineStep = React.useCallback(
     (endNodeUUID: string) => {
@@ -201,14 +114,6 @@ export const PipelineEditor = () => {
       dispatch({ type: "MAKE_CONNECTION", payload: endNodeUUID });
     },
     [dispatch]
-  );
-
-  const saveSteps = React.useCallback(
-    (steps: StepsDict) => {
-      const newPipelineJson = mergeStepsIntoPipelineJson(steps);
-      if (newPipelineJson) savePipelineJson(newPipelineJson);
-    },
-    [mergeStepsIntoPipelineJson, savePipelineJson]
   );
 
   const openLogs = (e: React.MouseEvent) => {
@@ -427,7 +332,7 @@ export const PipelineEditor = () => {
   // 'Run incoming steps' button.
   let selectedStepsHasIncoming = false;
   for (let x = 0; x < eventVars.selectedSteps.length; x++) {
-    let selectedStep = eventVars.steps[eventVars.selectedSteps[x]];
+    const selectedStep = eventVars.steps[eventVars.selectedSteps[x]];
     for (let i = 0; i < selectedStep.incoming_connections.length; i++) {
       let incomingStepUUID = selectedStep.incoming_connections[i];
       if (!eventVars.selectedSteps.includes(incomingStepUUID)) {
@@ -441,15 +346,6 @@ export const PipelineEditor = () => {
   }
 
   const flushPage = useHasChanged(hash.current);
-  const shouldSave = useHasChanged(eventVars.timestamp);
-
-  // if timestamp is changed, auto-save
-  // check useEventVars to see if the action return value is wrapped by withTimestamp
-  React.useEffect(() => {
-    if (hasValue(eventVars.timestamp) && shouldSave) {
-      saveSteps(eventVars.steps);
-    }
-  }, [saveSteps, eventVars.timestamp, eventVars.steps, shouldSave]);
 
   const [connections, interactiveConnections] = React.useMemo(() => {
     const nonInteractive: Connection[] = [];
@@ -700,7 +596,6 @@ export const PipelineEditor = () => {
             </div>
             <InteractiveRunButton
               hidden={!isAllowedToRun}
-              isSessionRunning={isSessionRunning}
               selectedSteps={eventVars.selectedSteps}
               data-test-id="interactive-run-run-selected-steps"
               stepsType="selection"
@@ -709,7 +604,6 @@ export const PipelineEditor = () => {
             </InteractiveRunButton>
             <InteractiveRunButton
               hidden={!isAllowedToRun || !selectedStepsHasIncoming}
-              isSessionRunning={isSessionRunning}
               selectedSteps={eventVars.selectedSteps}
               data-test-id="interactive-run-run-incoming-steps"
               stepsType="incoming"
