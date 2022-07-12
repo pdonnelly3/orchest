@@ -68,7 +68,7 @@ export const CreateFileDialog = ({
   const { register, handleSubmit, watch, reset } = useForm<FileFormData>({
     defaultValues: defaultFormState(canCreateStep),
   });
-  const { run, setError, error, status } = useAsync<string>();
+  const { run, setError, error, status } = useAsync<void>();
 
   const selectedFolder = React.useMemo(
     () => lastSelectedFolderPath(selectedFiles),
@@ -85,14 +85,14 @@ export const CreateFileDialog = ({
         file.extension
       );
 
-      await run(createFile(projectPath))
-        .then((fullPath) => {
+      await run(
+        createFile(projectPath).then((fullPath) => {
           onSuccess({ projectPath, fullPath, shouldCreateStep });
           onClose();
         })
-        .catch(setError);
+      );
     },
-    [run, createFile, onSuccess, onClose]
+    [run, createFile, onSuccess, onClose, selectedFolder]
   );
 
   React.useEffect(() => {
@@ -108,7 +108,7 @@ export const CreateFileDialog = ({
     if (isOpen) {
       reset(defaultFormState(canCreateStep));
     }
-  }, [isOpen, canCreateStep]);
+  }, [reset, isOpen, canCreateStep]);
 
   const [fileName, extension, shouldCreateStep] = watch([
     "fileName",
