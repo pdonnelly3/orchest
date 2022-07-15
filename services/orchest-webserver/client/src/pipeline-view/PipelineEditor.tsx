@@ -18,7 +18,6 @@ import {
 } from "@orchest/lib-utils";
 import React from "react";
 import { BackToJobButton } from "./BackToJobButton";
-import { CancelInteractiveRunButton } from "./CancelInteractiveRunButton";
 import { getNodeCenter, updatePipelineJson } from "./common";
 import { ConnectionDot } from "./ConnectionDot";
 import { usePipelineDataContext } from "./contexts/PipelineDataContext";
@@ -26,7 +25,6 @@ import { usePipelineEditorContext } from "./contexts/PipelineEditorContext";
 import { useHotKeysInPipelineEditor } from "./hooks/useHotKeysInPipelineEditor";
 import { useOpenNoteBook } from "./hooks/useOpenNoteBook";
 import { useSavePipelineJson } from "./hooks/useSavePipelineJson";
-import { InteractiveRunButton } from "./InteractiveRunButton";
 import { PipelineCanvasHeaderBar } from "./pipeline-canvas-header-bar/PipelineCanvasHeaderBar";
 import { PipelineConnection } from "./pipeline-connection/PipelineConnection";
 import {
@@ -594,23 +592,6 @@ export const PipelineEditor = () => {
                 </IconButton>
               )}
             </div>
-            <InteractiveRunButton
-              hidden={!isAllowedToRun}
-              selectedSteps={eventVars.selectedSteps}
-              data-test-id="interactive-run-run-selected-steps"
-              stepsType="selection"
-            >
-              Run selected steps
-            </InteractiveRunButton>
-            <InteractiveRunButton
-              hidden={!isAllowedToRun || !selectedStepsHasIncoming}
-              selectedSteps={eventVars.selectedSteps}
-              data-test-id="interactive-run-run-incoming-steps"
-              stepsType="incoming"
-            >
-              Run incoming steps
-            </InteractiveRunButton>
-            <CancelInteractiveRunButton />
           </div>
         )}
       </div>
