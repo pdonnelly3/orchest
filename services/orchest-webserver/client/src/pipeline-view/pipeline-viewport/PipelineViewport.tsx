@@ -7,15 +7,12 @@ import Typography from "@mui/material/Typography";
 import classNames from "classnames";
 import React from "react";
 import { createStepAction } from "../action-helpers/eventVarsHelpers";
-import {
-  DEFAULT_SCALE_FACTOR,
-  originTransformScaling,
-  scaleCorrected,
-} from "../common";
+import { DEFAULT_SCALE_FACTOR, SCALE_UNIT } from "../common";
 import { useInteractiveRunsContext } from "../contexts/InteractiveRunsContext";
 import { usePipelineCanvasContext } from "../contexts/PipelineCanvasContext";
 import { usePipelineDataContext } from "../contexts/PipelineDataContext";
 import { usePipelineEditorContext } from "../contexts/PipelineEditorContext";
+import { usePipelineUiParamsContext } from "../contexts/PipelineUiParamsContext";
 import { useFileManagerContext } from "../file-manager/FileManagerContext";
 import { useValidateFilesOnSteps } from "../file-manager/useValidateFilesOnSteps";
 import {
@@ -26,8 +23,6 @@ import {
 import { INITIAL_PIPELINE_POSITION } from "../hooks/usePipelineCanvasState";
 import { STEP_HEIGHT, STEP_WIDTH } from "../PipelineStep";
 import { PipelineCanvas } from "./PipelineCanvas";
-import { useGestureOnViewport } from "./useGestureOnViewport";
-import { useKeyboardEventsOnViewport } from "./useKeyboardEventsOnViewport";
 import { useMouseEventsOnViewport } from "./useMouseEventsOnViewport";
 
 const CANVAS_VIEW_MULTIPLE = 3;
@@ -58,7 +53,6 @@ const Overlay = () => (
 export const PipelineViewport = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
-    canvasFuncRef: React.MutableRefObject<CanvasFunctions | undefined>;
     autoLayoutPipeline;
     isContextMenuOpenState: [
       boolean,
@@ -69,7 +63,6 @@ export const PipelineViewport = React.forwardRef<
   {
     children,
     className,
-    canvasFuncRef,
     autoLayoutPipeline,
     isContextMenuOpenState,
     style,
@@ -79,16 +72,20 @@ export const PipelineViewport = React.forwardRef<
 ) {
   const { executeRun } = useInteractiveRunsContext();
   const { dragFile } = useFileManagerContext();
-  const { pipelineCwd, isReadOnly, environments } = usePipelineDataContext();
   const {
     disabled,
-    eventVars,
-    trackMouseMovement,
-    dispatch,
-    newConnection,
+    pipelineCwd,
+    isReadOnly,
+    environments,
+  } = usePipelineDataContext();
+  const { eventVars, dispatch, newConnection } = usePipelineEditorContext();
+  const {
+    uiParams: { scaleFactor, stepSelector },
+    uiParamsDispatch,
     pipelineCanvasRef,
     getOnCanvasPosition,
-  } = usePipelineEditorContext();
+    trackMouseMovement,
+  } = usePipelineUiParamsContext();
   const {
     pipelineCanvasState: {
       panningState,
@@ -97,8 +94,9 @@ export const PipelineViewport = React.forwardRef<
       pipelineStepsHolderOffsetLeft,
       pipelineStepsHolderOffsetTop,
     },
-    setPipelineCanvasState,
-    resetPipelineCanvas,
+    setPipelineHolderOrigin,
+    centerView,
+    zoom,
   } = usePipelineCanvasContext();
 
   const localRef = React.useRef<HTMLDivElement | null>(null);
@@ -106,81 +104,17 @@ export const PipelineViewport = React.forwardRef<
     {}
   );
 
-  const getCurrentOrigin = React.useCallback(() => {
-    const canvasOffset = getOffset(pipelineCanvasRef.current);
-    const viewportOffset = getOffset(localRef.current ?? undefined);
-
-    const x = canvasOffset.left - viewportOffset.left;
-    const y = canvasOffset.top - viewportOffset.top;
-
-    return { x, y };
-  }, [pipelineCanvasRef]);
-
-  const pipelineSetHolderOrigin = React.useCallback(
-    (newOrigin: [number, number]) => {
-      const [x, y] = newOrigin;
-      const currentOrigin = getCurrentOrigin();
-      let [translateX, translateY] = originTransformScaling(
-        [x, y],
-        eventVars.scaleFactor
-      );
-
-      setPipelineCanvasState((current) => ({
-        pipelineOrigin: [x, y],
-        pipelineStepsHolderOffsetLeft:
-          translateX + currentOrigin.x - current.pipelineOffset[0],
-        pipelineStepsHolderOffsetTop:
-          translateY + currentOrigin.y - current.pipelineOffset[1],
-      }));
-    },
-    [eventVars.scaleFactor, setPipelineCanvasState, getCurrentOrigin]
-  );
-
-  const centerView = React.useCallback(() => {
-    resetPipelineCanvas();
-    dispatch({ type: "SET_SCALE_FACTOR", payload: DEFAULT_SCALE_FACTOR });
-  }, [dispatch, resetPipelineCanvas]);
-
-  const centerPipelineOrigin = React.useCallback(() => {
-    let viewportOffset = getOffset(localRef.current ?? undefined);
-    const canvasOffset = getOffset(pipelineCanvasRef.current ?? undefined);
-
-    if (localRef.current === null) {
-      return;
-    }
-    let viewportWidth = getWidth(localRef.current);
-    let viewportHeight = getHeight(localRef.current);
-
-    let originalX = viewportOffset.left - canvasOffset.left + viewportWidth / 2;
-    let originalY = viewportOffset.top - canvasOffset.top + viewportHeight / 2;
-
-    let centerOrigin = [
-      scaleCorrected(originalX, eventVars.scaleFactor),
-      scaleCorrected(originalY, eventVars.scaleFactor),
-    ] as [number, number];
-
-    pipelineSetHolderOrigin(centerOrigin);
-  }, [pipelineCanvasRef, eventVars.scaleFactor, pipelineSetHolderOrigin]);
-
-  // NOTE: React.useImperativeHandle should only be used in special cases
-  // here we have to use it to allow parent component (i.e. PipelineEditor) to center pipeline canvas
-  // otherwise, we have to use renderProps, but then we will have more issues
-  // e.g. we cannot keep the action buttons above PipelineCanvas
-  React.useImperativeHandle(
-    canvasFuncRef,
-    () => ({ centerPipelineOrigin, centerView }),
-    [centerPipelineOrigin, centerView]
-  );
+  useMouseEventsOnViewport();
 
   React.useEffect(() => {
     if (
       pipelineOffset[0] === INITIAL_PIPELINE_POSITION[0] &&
       pipelineOffset[1] === INITIAL_PIPELINE_POSITION[1] &&
-      eventVars.scaleFactor === DEFAULT_SCALE_FACTOR
+      scaleFactor === DEFAULT_SCALE_FACTOR
     ) {
-      pipelineSetHolderOrigin([0, 0]);
+      setPipelineHolderOrigin([0, 0]);
     }
-  }, [eventVars.scaleFactor, pipelineOffset, pipelineSetHolderOrigin]);
+  }, [scaleFactor, pipelineOffset, setPipelineHolderOrigin]);
 
   const pipelineSetHolderSize = React.useCallback(() => {
     if (!localRef.current) return;
@@ -199,7 +133,7 @@ export const PipelineViewport = React.forwardRef<
     // we need to save the offset of cursor against pipeline canvas
     if (e.button === 0 && panningState === "idle") {
       trackMouseMovement(e.clientX, e.clientY);
-      dispatch({
+      uiParamsDispatch({
         type: "CREATE_SELECTOR",
         payload: getOffset(pipelineCanvasRef.current),
       });
@@ -209,8 +143,8 @@ export const PipelineViewport = React.forwardRef<
   const onMouseUp = (e: React.MouseEvent) => {
     if (disabled || isContextMenuOpenState[0]) return;
     if (e.button === 0) {
-      if (eventVars.stepSelector.active) {
-        dispatch({ type: "SET_STEP_SELECTOR_INACTIVE" });
+      if (stepSelector.active) {
+        uiParamsDispatch({ type: "SET_STEP_SELECTOR_INACTIVE" });
       } else {
         dispatch({ type: "SELECT_STEPS", payload: { uuids: [] } });
       }
@@ -262,9 +196,6 @@ export const PipelineViewport = React.forwardRef<
     createStepsWithFiles(dropPosition);
   }, [createStepsWithFiles, getOnCanvasPosition]);
 
-  useMouseEventsOnViewport();
-  useKeyboardEventsOnViewport(canvasFuncRef);
-
   React.useEffect(() => {
     pipelineSetHolderSize();
     window.addEventListener("resize", pipelineSetHolderSize);
@@ -272,8 +203,6 @@ export const PipelineViewport = React.forwardRef<
       window.removeEventListener("resize", pipelineSetHolderSize);
     };
   }, [pipelineSetHolderSize]);
-
-  const zoom = useGestureOnViewport(localRef, pipelineSetHolderOrigin);
 
   const menuItems: ContextMenuItem[] = [
     {
@@ -330,14 +259,14 @@ export const PipelineViewport = React.forwardRef<
       type: "item",
       title: "Zoom in",
       action: ({ position }) => {
-        zoom(position, 0.25);
+        zoom(position, SCALE_UNIT);
       },
     },
     {
       type: "item",
       title: "Zoom out",
       action: ({ position }) => {
-        zoom(position, -0.25);
+        zoom(position, -SCALE_UNIT);
       },
     },
   ];
@@ -410,7 +339,7 @@ export const PipelineViewport = React.forwardRef<
           transform:
             `translateX(${pipelineOffset[0]}px) ` +
             `translateY(${pipelineOffset[1]}px) ` +
-            `scale(${eventVars.scaleFactor})`,
+            `scale(${scaleFactor})`,
           left: pipelineStepsHolderOffsetLeft,
           top: pipelineStepsHolderOffsetTop,
           ...canvasResizeStyle,
