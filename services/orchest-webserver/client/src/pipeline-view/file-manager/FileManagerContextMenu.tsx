@@ -13,7 +13,7 @@ import {
 import React from "react";
 import { usePipelineDataContext } from "../contexts/PipelineDataContext";
 import { usePipelineEditorContext } from "../contexts/PipelineEditorContext";
-import { useOpenNoteBook } from "../hooks/useOpenNoteBook";
+import { useOpenFile } from "../hooks/useOpenFile";
 import {
   cleanFilePath,
   FILE_MANAGEMENT_ENDPOINT,
@@ -44,7 +44,7 @@ export const FileManagerContextMenu: React.FC<{
   } = usePipelineDataContext();
   const { pipelineJson } = usePipelineEditorContext();
 
-  const openNotebook = useOpenNoteBook();
+  const { navigateToJupyterLab } = useOpenFile();
 
   const { isJobRun, jobRunQueryArgs } = React.useMemo(() => {
     return {
@@ -83,8 +83,8 @@ export const FileManagerContextMenu: React.FC<{
   const handleContextEdit = React.useCallback(() => {
     if (isReadOnly) return;
     handleClose();
-    openNotebook(undefined, cleanFilePath(contextMenuCombinedPath));
-  }, [contextMenuCombinedPath, openNotebook, handleClose, isReadOnly]);
+    navigateToJupyterLab(undefined, cleanFilePath(contextMenuCombinedPath));
+  }, [contextMenuCombinedPath, navigateToJupyterLab, handleClose, isReadOnly]);
 
   const handleContextView = React.useCallback(() => {
     handleClose();

@@ -11,11 +11,7 @@ import AddIcon from "@mui/icons-material/Add";
 import CropFreeIcon from "@mui/icons-material/CropFree";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RemoveIcon from "@mui/icons-material/Remove";
-import {
-  activeElementIsInput,
-  hasValue,
-  joinRelativePaths,
-} from "@orchest/lib-utils";
+import { activeElementIsInput, hasValue } from "@orchest/lib-utils";
 import React from "react";
 import { BackToJobButton } from "./BackToJobButton";
 import { getNodeCenter, SCALE_UNIT, updatePipelineJson } from "./common";
@@ -25,7 +21,7 @@ import { usePipelineDataContext } from "./contexts/PipelineDataContext";
 import { usePipelineEditorContext } from "./contexts/PipelineEditorContext";
 import { usePipelineUiParamsContext } from "./contexts/PipelineUiParamsContext";
 import { useHotKeysInPipelineEditor } from "./hooks/useHotKeysInPipelineEditor";
-import { useOpenNoteBook } from "./hooks/useOpenNoteBook";
+import { useOpenFile } from "./hooks/useOpenFile";
 import { useSavePipelineJson } from "./hooks/useSavePipelineJson";
 import { PipelineCanvasHeaderBar } from "./pipeline-canvas-header-bar/PipelineCanvasHeaderBar";
 import { PipelineConnection } from "./pipeline-connection/PipelineConnection";
@@ -68,7 +64,7 @@ export const PipelineEditor = () => {
 
   const { centerPipelineOrigin, centerView } = usePipelineCanvasContext();
 
-  const openNotebook = useOpenNoteBook();
+  const { openNotebook, openFilePreviewView } = useOpenFile();
 
   const removeSteps = React.useCallback(
     (uuids: string[]) => {
@@ -128,47 +124,11 @@ export const PipelineEditor = () => {
     );
   };
 
-  const onOpenFilePreviewView = React.useCallback(
-    (e: React.MouseEvent | undefined, stepUuid: string) => {
-      navigateTo(
-        isJobRun ? siteMap.jobRunFilePreview.path : siteMap.filePreview.path,
-        {
-          query: {
-            projectUuid,
-            pipelineUuid,
-            stepUuid,
-            ...(isJobRun ? jobRunQueryArgs : undefined),
-          },
-          state: { isReadOnly },
-        },
-        e
-      );
-    },
-    [
-      isJobRun,
-      isReadOnly,
-      jobRunQueryArgs,
-      navigateTo,
-      pipelineUuid,
-      projectUuid,
-    ]
-  );
-
-  const notebookFilePath = React.useCallback(
-    (pipelineCwd: string, stepUUID: string) => {
-      return joinRelativePaths(
-        pipelineCwd,
-        eventVars.steps[stepUUID].file_path
-      );
-    },
-    [eventVars.steps]
-  );
-
   const onDoubleClickStep = (stepUUID: string) => {
     if (isReadOnly) {
-      onOpenFilePreviewView(undefined, stepUUID);
+      openFilePreviewView(undefined, stepUUID);
     } else if (pipelineCwd) {
-      openNotebook(undefined, notebookFilePath(pipelineCwd, stepUUID));
+      openNotebook(undefined, stepUUID);
     }
   };
 
@@ -209,14 +169,6 @@ export const PipelineEditor = () => {
       return true;
     });
   }, [eventVars.openedStep, removeSteps, setConfirm]);
-
-  const onOpenNotebook = React.useCallback(
-    (e: React.MouseEvent) => {
-      if (pipelineCwd && eventVars.openedStep)
-        openNotebook(e, notebookFilePath(pipelineCwd, eventVars.openedStep));
-    },
-    [eventVars.openedStep, notebookFilePath, openNotebook, pipelineCwd]
-  );
 
   const recalibrate = React.useCallback(() => {
     // ensure that connections are re-rendered against the final positions of the steps
@@ -482,8 +434,6 @@ export const PipelineEditor = () => {
               <PipelineStep
                 key={`${step.uuid}-${hash.current}`}
                 data={step}
-                onOpenFilePreviewView={onOpenFilePreviewView}
-                onOpenNotebook={onOpenNotebook}
                 selected={selected}
                 savePositions={savePositions}
                 movedToTop={movedToTop}
@@ -598,8 +548,6 @@ export const PipelineEditor = () => {
         key={eventVars.openedStep}
         onSave={onSaveDetails}
         onDelete={onDetailsDelete}
-        onOpenFilePreviewView={onOpenFilePreviewView}
-        onOpenNotebook={onOpenNotebook}
       />
 
       {hasSelectedSteps && !isReadOnly && (

@@ -13,7 +13,7 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import { fetcher, HEADER } from "@orchest/lib-utils";
 import React from "react";
-import { useOpenNoteBook } from "../hooks/useOpenNoteBook";
+import { useOpenFile } from "../hooks/useOpenFile";
 import {
   baseNameFromPath,
   cleanFilePath,
@@ -172,7 +172,7 @@ export const FileTree = React.memo(function FileTreeComponent({
 
   const { handleSelect, reload } = useFileManagerLocalContext();
 
-  const openNotebook = useOpenNoteBook();
+  const { navigateToJupyterLab } = useOpenFile();
 
   const onOpen = React.useCallback(
     (filePath: string) => {
@@ -231,7 +231,7 @@ export const FileTree = React.memo(function FileTreeComponent({
         return;
       }
 
-      openNotebook(undefined, cleanFilePath(filePath));
+      navigateToJupyterLab(undefined, cleanFilePath(filePath));
     },
     [
       pipelines,
@@ -240,7 +240,7 @@ export const FileTree = React.memo(function FileTreeComponent({
       setAlert,
       setConfirm,
       navigateTo,
-      openNotebook,
+      navigateToJupyterLab,
     ]
   );
 
