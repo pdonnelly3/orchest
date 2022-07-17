@@ -70,5 +70,5 @@ export const useAutoStartSession = ({ isReadOnly = false }) => {
     }
   }, [session]);
 
-  return session;
+  return { session, startSession };
 };

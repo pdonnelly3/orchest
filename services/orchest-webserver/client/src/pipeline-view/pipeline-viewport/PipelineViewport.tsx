@@ -11,7 +11,9 @@ import { DEFAULT_SCALE_FACTOR } from "../common";
 import { usePipelineCanvasContext } from "../contexts/PipelineCanvasContext";
 import { usePipelineDataContext } from "../contexts/PipelineDataContext";
 import { usePipelineEditorContext } from "../contexts/PipelineEditorContext";
-import { usePipelineUiParamsContext } from "../contexts/PipelineUiParamsContext";
+import { usePipelineRefs } from "../contexts/PipelineRefsContext";
+import { usePipelineUiStatesContext } from "../contexts/PipelineUiStatesContext";
+import { useScaleFactor } from "../contexts/ScaleFactorContext";
 import { useFileManagerContext } from "../file-manager/FileManagerContext";
 import { useValidateFilesOnSteps } from "../file-manager/useValidateFilesOnSteps";
 import { INITIAL_PIPELINE_POSITION } from "../hooks/usePipelineCanvasState";
@@ -75,12 +77,15 @@ const PipelineViewportComponent = React.forwardRef<
   const { disabled, pipelineCwd, environments } = usePipelineDataContext();
   const { eventVars, dispatch, newConnection } = usePipelineEditorContext();
   const {
-    uiParams: { scaleFactor, stepSelector },
-    uiParamsDispatch,
-    pipelineCanvasRef,
+    scaleFactor,
     getOnCanvasPosition,
     trackMouseMovement,
-  } = usePipelineUiParamsContext();
+  } = useScaleFactor();
+  const { pipelineCanvasRef } = usePipelineRefs();
+  const {
+    uiStates: { stepSelector },
+    uiStatesDispatch,
+  } = usePipelineUiStatesContext();
   const {
     pipelineCanvasState: {
       panningState,
@@ -126,7 +131,7 @@ const PipelineViewportComponent = React.forwardRef<
     // we need to save the offset of cursor against pipeline canvas
     if (e.button === 0 && panningState === "idle") {
       trackMouseMovement(e.clientX, e.clientY);
-      uiParamsDispatch({
+      uiStatesDispatch({
         type: "CREATE_SELECTOR",
         payload: getOffset(pipelineCanvasRef.current),
       });
@@ -137,7 +142,7 @@ const PipelineViewportComponent = React.forwardRef<
     if (disabled || isContextMenuOpenState[0]) return;
     if (e.button === 0) {
       if (stepSelector.active) {
-        uiParamsDispatch({ type: "SET_STEP_SELECTOR_INACTIVE" });
+        uiStatesDispatch({ type: "SET_STEP_SELECTOR_INACTIVE" });
       } else {
         dispatch({ type: "SELECT_STEPS", payload: { uuids: [] } });
       }
