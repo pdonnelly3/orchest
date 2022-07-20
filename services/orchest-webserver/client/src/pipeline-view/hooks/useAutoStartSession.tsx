@@ -9,7 +9,7 @@ import { siteMap } from "@/routingConfig";
 import { hasValue } from "@orchest/lib-utils";
 import React from "react";
 
-export const useAutoStartSession = ({ isReadOnly = false }) => {
+export const useAutoStartSession = ({ isReadOnly = true }) => {
   const {
     state: { sessions },
     getSession,
