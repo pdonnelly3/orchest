@@ -368,6 +368,7 @@ export type PipelineJson = {
   uuid: string;
   version: string;
   services?: Record<string, Service>;
+  hash?: string;
 };
 
 export type Example = {
