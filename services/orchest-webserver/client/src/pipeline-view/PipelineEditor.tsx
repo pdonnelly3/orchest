@@ -18,7 +18,7 @@ import { useSavePipelineJson } from "./hooks/useSavePipelineJson";
 import { HotKeysBoundary } from "./HotKeysBoundary";
 import { PipelineCanvasHeaderBar } from "./pipeline-canvas-header-bar/PipelineCanvasHeaderBar";
 import { PipelineConnection } from "./pipeline-connection/PipelineConnection";
-import { PipelineViewingOptions } from "./pipeline-viewing-opions/PipelineViewingOptions";
+import { PipelineViewingOptions } from "./pipeline-viewing-options/PipelineViewingOptions";
 import { PipelineViewport } from "./pipeline-viewport/PipelineViewport";
 import { PipelineStep } from "./PipelineStep";
 import { getStepSelectorRectangle, Rectangle } from "./Rectangle";
