@@ -13,7 +13,6 @@ import { usePipelineRefs } from "./contexts/PipelineRefsContext";
 import { usePipelineUiStateContext } from "./contexts/PipelineUiStateContext";
 import { useScaleFactor } from "./contexts/ScaleFactorContext";
 import { DeleteStepsButton } from "./DeleteStepsButton";
-import { useInitializeConnections } from "./hooks/useInitializeConnections";
 import { useOpenFile } from "./hooks/useOpenFile";
 import { useSavePipelineJson } from "./hooks/useSavePipelineJson";
 import { HotKeysBoundary } from "./HotKeysBoundary";
@@ -66,7 +65,6 @@ export const PipelineEditor = () => {
     },
     uiStateDispatch,
     instantiateConnection,
-    recalibrate,
   } = usePipelineUiStateContext();
 
   // we need to calculate the canvas offset every time for re-alignment after zoom in/out
@@ -111,7 +109,6 @@ export const PipelineEditor = () => {
     });
 
     draggedStepPositions.current = {};
-    // recalibrate();
   }, [draggedStepPositions, uiStateDispatch, steps]);
 
   const hasSelectedSteps = selectedSteps.length > 0;
@@ -166,8 +163,6 @@ export const PipelineEditor = () => {
     });
     return [nonInteractive, interactive];
   }, [connections, cursorControlledStep]);
-
-  useInitializeConnections();
 
   return (
     <div className="pipeline-view">

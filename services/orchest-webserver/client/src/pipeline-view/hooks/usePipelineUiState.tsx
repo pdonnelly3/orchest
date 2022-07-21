@@ -37,7 +37,6 @@ export type PipelineUiState = {
   stepSelector: StepSelectorData;
   shouldAutoFocus: boolean;
   error?: string | null;
-  timestamp: number | undefined;
   subViewIndex: number;
   isDeletingSteps: boolean;
   isContextMenuOpen: boolean;
@@ -526,7 +525,7 @@ export const usePipelineUiState = () => {
 
           const updatedSelector = { ...state.stepSelector, x2: x, y2: y };
 
-          let rect = getStepSelectorRectangle(updatedSelector);
+          const rect = getStepSelectorRectangle(updatedSelector);
           return produce(state, (draft) => {
             draft.stepSelector = updatedSelector;
             // for each step perform intersect
@@ -703,7 +702,6 @@ export const usePipelineUiState = () => {
     },
     connections: [],
     selectedConnection: null,
-    timestamp: undefined,
     subViewIndex: 0,
     shouldAutoFocus: false,
     isDeletingSteps: false,
