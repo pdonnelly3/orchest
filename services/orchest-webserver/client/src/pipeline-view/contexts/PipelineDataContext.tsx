@@ -6,11 +6,14 @@ import { useEnsureValidPipeline } from "@/hooks/useEnsureValidPipeline";
 import { useFetchEnvironments } from "@/hooks/useFetchEnvironments";
 import { useFetchPipelineJson } from "@/hooks/useFetchPipelineJson";
 import { siteMap } from "@/routingConfig";
-import { Environment, PipelineJson } from "@/types";
+import { Environment, PipelineJson, StepsDict } from "@/types";
+import { validatePipeline } from "@/utils/webserver-utils";
 import { hasValue, uuidv4 } from "@orchest/lib-utils";
 import React from "react";
+import { extractStepsFromPipelineJson, updatePipelineJson } from "../common";
 import { useFetchInteractiveRun } from "../hooks/useFetchInteractiveRun";
 import { useIsReadOnly } from "../hooks/useIsReadOnly";
+import { usePipelineRefs } from "./PipelineRefsContext";
 
 export type PipelineDataContextType = {
   disabled: boolean;
@@ -29,6 +32,8 @@ export type PipelineDataContextType = {
   ) => void;
   isFetchingPipelineJson: boolean;
   isJobRun: boolean;
+  steps: StepsDict;
+  setSteps: React.Dispatch<React.SetStateAction<StepsDict>>;
 };
 
 export const PipelineDataContext = React.createContext<PipelineDataContextType>(
@@ -48,6 +53,8 @@ export const PipelineDataContextProvider: React.FC = ({ children }) => {
     runUuid: runUuidFromRoute,
     navigateTo,
   } = useCustomRoute();
+
+  const { zIndexMax } = usePipelineRefs();
 
   const {
     state: { pipeline, pipelines, projectUuid },
@@ -91,13 +98,52 @@ export const PipelineDataContextProvider: React.FC = ({ children }) => {
       // in case you want to re-initialize all components according to the new PipelineJson
       // to be part of the re-initialization, you need to assign hash.current as part of the key of your component
       originalSetPipelineJson((current) => {
+        if (isReadOnly) {
+          console.error("savePipeline should be un-callable in readOnly mode.");
+          return current;
+        }
         const newData = data instanceof Function ? data(current) : data;
+
+        // validate pipelineJSON
+        const pipelineValidation = validatePipeline(newData);
+
+        if (!pipelineValidation.valid) {
+          // Just show the first error
+          setAlert("Error", pipelineValidation.errors[0]);
+          return current;
+        }
+
         if (flushPage && newData) newData.hash = uuidv4();
         return newData;
       });
     },
     [originalSetPipelineJson]
   );
+
+  const [steps, setStepsDispatcher] = React.useState<StepsDict>({});
+
+  const setSteps = React.useCallback(
+    (value: React.SetStateAction<StepsDict>) => {
+      setStepsDispatcher((current) => {
+        const updatedSteps = value instanceof Function ? value(current) : value;
+        setPipelineJson(
+          (current) => updatePipelineJson(current, updatedSteps),
+          true
+        );
+        return updatedSteps;
+      });
+    },
+    []
+  );
+
+  React.useEffect(() => {
+    // `hash` is added from the first re-render.
+    if (pipelineJson && !Boolean(pipelineJson.hash)) {
+      const initialSteps = extractStepsFromPipelineJson(pipelineJson);
+      setStepsDispatcher(initialSteps);
+      zIndexMax.current = Object.keys(initialSteps).length;
+    }
+  }, [pipelineJson]);
 
   React.useEffect(() => {
     // This case is hit when a user tries to load a pipeline that belongs
@@ -145,6 +191,8 @@ export const PipelineDataContextProvider: React.FC = ({ children }) => {
         pipelineJson,
         setPipelineJson,
         isFetchingPipelineJson,
+        steps,
+        setSteps,
         isJobRun,
       }}
     >

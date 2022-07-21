@@ -1,7 +1,6 @@
 import { useForceUpdate } from "@/hooks/useForceUpdate";
 import { layoutPipeline } from "@/utils/pipeline-layout";
 import React from "react";
-import { updatePipelineJson } from "../common";
 import { useInitializePipelineEditor } from "../hooks/useInitializePipelineEditor";
 import {
   PipelineUiState,
@@ -36,8 +35,13 @@ export const usePipelineUiStateContext = () =>
 export const PipelineUiStateContextProvider: React.FC = ({ children }) => {
   const { stepRefs } = usePipelineRefs();
   const { uiState, uiStateDispatch } = usePipelineUiState();
-  const { steps, connections } = uiState;
-  const { isReadOnly, setPipelineJson } = usePipelineDataContext();
+  const { connections } = uiState;
+  const {
+    isReadOnly,
+    setPipelineJson,
+    steps,
+    setSteps,
+  } = usePipelineDataContext();
 
   useInitializePipelineEditor(uiStateDispatch);
 
@@ -77,11 +81,10 @@ export const PipelineUiStateContextProvider: React.FC = ({ children }) => {
     const spacingFactor = 0.7;
     const gridMargin = 20;
 
-    setPipelineJson((current) => {
-      if (!current) return current;
+    setSteps((currentSteps) => {
       const updatedSteps = layoutPipeline(
         // Use the pipeline definition from the editor
-        steps,
+        currentSteps,
         STEP_HEIGHT,
         (1 + spacingFactor * (STEP_HEIGHT / STEP_WIDTH)) *
           (STEP_WIDTH / STEP_HEIGHT),
@@ -91,19 +94,36 @@ export const PipelineUiStateContextProvider: React.FC = ({ children }) => {
         gridMargin,
         STEP_HEIGHT
       );
+      return updatedSteps;
+    });
 
-      const updated = updatePipelineJson(current, updatedSteps);
+    // setPipelineJson((current) => {
+    //   if (!current) return current;
+    //   const updatedSteps = layoutPipeline(
+    //     // Use the pipeline definition from the editor
+    //     steps,
+    //     STEP_HEIGHT,
+    //     (1 + spacingFactor * (STEP_HEIGHT / STEP_WIDTH)) *
+    //       (STEP_WIDTH / STEP_HEIGHT),
+    //     1 + spacingFactor,
+    //     gridMargin,
+    //     gridMargin * 4, // don't put steps behind top buttons
+    //     gridMargin,
+    //     STEP_HEIGHT
+    //   );
 
-      uiStateDispatch({ type: "SAVE_STEPS", payload: updated.steps });
-      return updated;
-    }, true); // flush page, re-instantiate all UI elements with new local state for dragging
+    //   const updated = updatePipelineJson(current, updatedSteps);
+
+    //   uiStateDispatch({ type: "SAVE_STEPS", payload: updated.steps });
+    //   return updated;
+    // }, true); // flush page, re-instantiate all UI elements with new local state for dragging
     // the rendering of connection lines depend on the positions of the steps
     // so we need another render to redraw the connections lines
     // here we intentionally break the React built-in event batching
-    window.setTimeout(() => {
-      recalibrate();
-    }, 0);
-  }, [recalibrate, setPipelineJson, steps, uiStateDispatch]);
+    // window.setTimeout(() => {
+    //   recalibrate();
+    // }, 0);
+  }, [setPipelineJson, steps, uiStateDispatch]);
 
   return (
     <PipelineUiStateContext.Provider

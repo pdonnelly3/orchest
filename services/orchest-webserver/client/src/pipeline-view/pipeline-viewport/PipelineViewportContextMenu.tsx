@@ -23,10 +23,10 @@ export const PipelineViewportContextMenu = ({
   autoLayoutPipeline,
 }: PipelineViewportContextMenuProps) => {
   const { handleContextMenu, ...props } = usePipelineViewportContextMenu(); // eslint-disable-line @typescript-eslint/no-unused-vars
-  const { isReadOnly, environments } = usePipelineDataContext();
+  const { steps, isReadOnly, environments } = usePipelineDataContext();
   const { getOnCanvasPosition } = useScaleFactor();
   const {
-    uiState: { steps, selectedSteps },
+    uiState: { selectedSteps },
     uiStateDispatch,
   } = usePipelineUiStateContext();
   const { executeRun } = useInteractiveRunsContext();

@@ -26,7 +26,7 @@ const commandsString = Object.values(COMMANDS).join(", ");
 const inCanvasCommandsString = Object.values(IN_CANVAS_COMMANDS).join(", ");
 
 export const useHotKeysInPipelineEditor = () => {
-  const { isReadOnly } = usePipelineDataContext();
+  const { isReadOnly, steps } = usePipelineDataContext();
   const {
     centerView,
     centerPipelineOrigin,
@@ -35,7 +35,7 @@ export const useHotKeysInPipelineEditor = () => {
   } = usePipelineCanvasContext();
   const {
     uiStateDispatch,
-    uiState: { stepSelector, steps, selectedSteps, selectedConnection },
+    uiState: { stepSelector, selectedSteps, selectedConnection },
     autoLayoutPipeline,
   } = usePipelineUiStateContext();
   const [isHoverEditor, setIsHoverEditor] = React.useState(false);

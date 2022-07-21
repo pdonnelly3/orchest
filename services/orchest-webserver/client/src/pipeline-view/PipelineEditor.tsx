@@ -35,6 +35,7 @@ export const PipelineEditor = () => {
     projectUuid,
     jobUuid,
     pipelineJson,
+    steps,
   } = usePipelineDataContext();
 
   const returnToJob = React.useCallback(
@@ -57,7 +58,6 @@ export const PipelineEditor = () => {
   const {
     uiState: {
       stepSelector,
-      steps,
       selectedSteps,
       connections,
       cursorControlledStep,
@@ -98,22 +98,21 @@ export const PipelineEditor = () => {
 
   const savePositions = React.useCallback(() => {
     const mutations = draggedStepPositions.current;
-
     Object.entries(mutations).forEach(([key, position]) => {
-      uiStateDispatch((state) => ({
+      uiStateDispatch({
         type: "SAVE_STEP_DETAILS",
         payload: {
           stepChanges: {
-            meta_data: { position, hidden: state.steps[key].meta_data.hidden },
+            meta_data: { position, hidden: steps[key].meta_data.hidden },
           },
           uuid: key,
         },
-      }));
+      });
     });
 
     draggedStepPositions.current = {};
-    recalibrate();
-  }, [draggedStepPositions, recalibrate, uiStateDispatch]);
+    // recalibrate();
+  }, [draggedStepPositions, uiStateDispatch, steps]);
 
   const hasSelectedSteps = selectedSteps.length > 0;
 

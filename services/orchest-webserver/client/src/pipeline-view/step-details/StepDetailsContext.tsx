@@ -24,9 +24,10 @@ export const StepDetailsContextProvider: React.FC = ({ children }) => {
     jobUuid,
     pipelineUuid,
     runUuid,
+    steps,
   } = usePipelineDataContext();
   const {
-    uiState: { steps, openedStep },
+    uiState: { openedStep },
   } = usePipelineUiStateContext();
 
   const step = steps[openedStep || ""];

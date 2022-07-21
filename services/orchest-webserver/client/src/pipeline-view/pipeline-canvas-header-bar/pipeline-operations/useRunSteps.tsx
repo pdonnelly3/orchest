@@ -16,9 +16,10 @@ export const useRunSteps = () => {
     isReadOnly,
     pipelineUuid,
     pipelineJson,
+    steps,
   } = usePipelineDataContext();
   const {
-    uiState: { selectedSteps, steps },
+    uiState: { selectedSteps },
   } = usePipelineUiStateContext();
 
   const {

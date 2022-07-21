@@ -57,9 +57,10 @@ const StepDetailsComponent: React.FC<{
     runUuid,
     isReadOnly,
     pipelineJson,
+    steps,
   } = usePipelineDataContext();
   const {
-    uiState: { subViewIndex, shouldAutoFocus, stepSelector, steps, openedStep },
+    uiState: { subViewIndex, shouldAutoFocus, stepSelector, openedStep },
     uiStateDispatch,
   } = usePipelineUiStateContext();
 

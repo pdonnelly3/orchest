@@ -50,6 +50,7 @@ const PipelineViewportComponent = React.forwardRef<
     pipelineCwd,
     environments,
     isFetchingPipelineJson,
+    steps,
   } = usePipelineDataContext();
 
   const {
@@ -64,7 +65,6 @@ const PipelineViewportComponent = React.forwardRef<
       selectedConnection,
       openedStep,
       isContextMenuOpen,
-      steps,
     },
     uiStateDispatch,
     autoLayoutPipeline,

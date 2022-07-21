@@ -26,10 +26,12 @@ export function isValidEnvironmentVariableName(name: string) {
   return /^[0-9a-zA-Z\-_]+$/gm.test(name);
 }
 
-export function validatePipeline(pipelineJson: PipelineJson) {
-  let errors: string[] = [];
+export function validatePipeline(pipelineJson?: PipelineJson) {
+  if (!pipelineJson)
+    return { valid: false, errors: ["pipelineJson is undefined"] };
+  const errors: string[] = [];
 
-  let valid = pipelineValidator(pipelineJson);
+  const valid = pipelineValidator(pipelineJson);
   if (!valid) {
     errors.concat(
       (pipelineValidator.errors || []).map(

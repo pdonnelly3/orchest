@@ -274,7 +274,7 @@ export type Step = {
     display_name?: string;
     name?: string;
   };
-  meta_data: { hidden: boolean; position: [number, number] };
+  meta_data: PipelineStepMetaData;
   parameters: Record<string, any>;
 };
 
@@ -307,7 +307,6 @@ export type PipelineStepMetaData = {
 
 export type PipelineStepState = Step & {
   outgoing_connections?: string[];
-  meta_data?: PipelineStepMetaData;
 };
 
 export type StepsDict = Record<string, PipelineStepState>;

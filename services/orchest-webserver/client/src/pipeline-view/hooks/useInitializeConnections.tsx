@@ -1,5 +1,6 @@
 import { useHasChanged } from "@/hooks/useHasChanged";
 import React from "react";
+import { usePipelineDataContext } from "../contexts/PipelineDataContext";
 import { usePipelineRefs } from "../contexts/PipelineRefsContext";
 import { usePipelineUiStateContext } from "../contexts/PipelineUiStateContext";
 
@@ -12,10 +13,8 @@ import { usePipelineUiStateContext } from "../contexts/PipelineUiStateContext";
  */
 export const useInitializeConnections = () => {
   const { stepRefs } = usePipelineRefs();
-  const {
-    uiState: { steps },
-    recalibrate,
-  } = usePipelineUiStateContext();
+  const { steps } = usePipelineDataContext();
+  const { recalibrate } = usePipelineUiStateContext();
   const stepCount = Object.keys(steps).length;
 
   const isStepRefsLoaded = useHasChanged(

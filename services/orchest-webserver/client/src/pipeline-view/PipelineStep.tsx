@@ -157,9 +157,7 @@ const PipelineStepComponent = React.forwardRef<
     isReadOnly,
     runUuid,
   } = usePipelineDataContext();
-  const {
-    uiState: { isContextMenuOpen },
-  } = usePipelineUiStateContext();
+
   const {
     mouseTracker,
     keysDown,
@@ -174,6 +172,7 @@ const PipelineStepComponent = React.forwardRef<
       cursorControlledStep,
       selectedSteps,
       selectedConnection,
+      isContextMenuOpen,
     },
     uiStateDispatch,
   } = usePipelineUiStateContext();

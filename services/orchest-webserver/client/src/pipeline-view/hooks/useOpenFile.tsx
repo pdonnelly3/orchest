@@ -3,15 +3,10 @@ import { siteMap } from "@/routingConfig";
 import { join } from "@/utils/path";
 import React from "react";
 import { usePipelineDataContext } from "../contexts/PipelineDataContext";
-import { usePipelineUiStateContext } from "../contexts/PipelineUiStateContext";
 
 export const useOpenFile = () => {
   const { navigateTo, pipelineUuid, projectUuid, jobUuid } = useCustomRoute();
-  const { pipelineCwd, runUuid, isReadOnly } = usePipelineDataContext();
-
-  const {
-    uiState: { steps },
-  } = usePipelineUiStateContext();
+  const { pipelineCwd, runUuid, isReadOnly, steps } = usePipelineDataContext();
 
   const isJobRun = jobUuid && runUuid;
   const jobRunQueryArgs = React.useMemo(() => ({ jobUuid, runUuid }), [

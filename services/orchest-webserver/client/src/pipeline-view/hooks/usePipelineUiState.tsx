@@ -6,14 +6,14 @@ import type {
   PipelineStepState,
   ReducerActionWithCallback,
   Step,
-  StepsDict,
 } from "@/types";
 import { getOuterHeight, getOuterWidth } from "@/utils/jquery-replacement";
-import { hasValue, intersectRect, uuidv4 } from "@orchest/lib-utils";
+import { intersectRect, uuidv4 } from "@orchest/lib-utils";
 import produce from "immer";
 import merge from "lodash.merge";
 import React from "react";
 import { getScaleCorrectedPosition, willCreateCycle } from "../common";
+import { usePipelineDataContext } from "../contexts/PipelineDataContext";
 import { usePipelineRefs } from "../contexts/PipelineRefsContext";
 import { useScaleFactor } from "../contexts/ScaleFactorContext";
 import { getStepSelectorRectangle } from "../Rectangle";
@@ -27,7 +27,6 @@ type StepSelectorData = {
 };
 
 export type PipelineUiState = {
-  steps: StepsDict;
   connections: Connection[];
   doubleClickFirstClick: boolean;
   selectedSteps: string[];
@@ -45,14 +44,6 @@ export type PipelineUiState = {
 };
 
 export type Action =
-  | {
-      type: "SET_STEPS";
-      payload: StepsDict;
-    }
-  | {
-      type: "SAVE_STEPS";
-      payload: StepsDict;
-    }
   | {
       type: "CREATE_STEP";
       payload: PipelineStepState;
@@ -157,42 +148,6 @@ const DEFAULT_STEP_SELECTOR: StepSelectorData = {
   active: false,
 };
 
-export function removeConnection<
-  T extends Pick<PipelineUiState, "steps" | "connections">
->(baseState: T, connectionToDelete: Connection | NewConnection | null): T {
-  if (!connectionToDelete) return baseState;
-
-  const { startNodeUUID, endNodeUUID } = connectionToDelete;
-
-  const updatedConnections = baseState.connections.filter((connection) => {
-    return (
-      connection.startNodeUUID !== startNodeUUID ||
-      connection.endNodeUUID !== endNodeUUID
-    );
-  });
-
-  const subsequentStep = endNodeUUID ? baseState.steps[endNodeUUID] : undefined;
-
-  const updatedState = {
-    ...baseState,
-    connections: updatedConnections,
-    selectedConnection: null,
-  };
-
-  if (!endNodeUUID || !subsequentStep) return updatedState;
-
-  // remove it from the incoming_connections of its subsequent nodes
-  // we don't have to clean up outgoing_connections
-  const subsequentStepIncomingConnections = subsequentStep.incoming_connections.filter(
-    (incomingConnectionUuid) => incomingConnectionUuid !== startNodeUUID
-  );
-
-  updatedState.steps = produce(updatedState.steps, (draft) => {
-    draft[endNodeUUID].incoming_connections = subsequentStepIncomingConnections;
-  });
-  return updatedState;
-}
-
 // use timestamp to trigger saving to BE
 function withTimestamp<T extends Record<string, unknown>>(obj: T) {
   return {
@@ -204,6 +159,7 @@ function withTimestamp<T extends Record<string, unknown>>(obj: T) {
 export const usePipelineUiState = () => {
   const { setAlert } = useAppContext();
   const { stepRefs, mouseTracker, newConnection } = usePipelineRefs();
+  const { steps, setSteps } = usePipelineDataContext();
   const { scaleFactor } = useScaleFactor();
 
   const memoizedReducer = React.useCallback(
@@ -231,6 +187,46 @@ export const usePipelineUiState = () => {
         });
       };
 
+      const removeConnection = (
+        connectionToDelete: Connection | NewConnection | null
+      ): PipelineUiState => {
+        if (!connectionToDelete) return state;
+
+        const { startNodeUUID, endNodeUUID } = connectionToDelete;
+
+        const updatedConnections = state.connections.filter((connection) => {
+          return (
+            connection.startNodeUUID !== startNodeUUID ||
+            connection.endNodeUUID !== endNodeUUID
+          );
+        });
+
+        const subsequentStep = endNodeUUID ? steps[endNodeUUID] : undefined;
+
+        const updatedState = {
+          ...state,
+          connections: updatedConnections,
+          selectedConnection: null,
+        };
+
+        if (endNodeUUID && subsequentStep) {
+          // Remove it from the incoming_connections of its subsequent nodes
+          // we don't have to clean up outgoing_connections
+          const subsequentStepIncomingConnections = subsequentStep.incoming_connections.filter(
+            (incomingConnectionUuid) => incomingConnectionUuid !== startNodeUUID
+          );
+
+          setSteps((current) => {
+            current[
+              endNodeUUID
+            ].incoming_connections = subsequentStepIncomingConnections;
+            return current;
+          });
+        }
+
+        return updatedState;
+      };
+
       const makeConnection = (endNodeUUID: string): PipelineUiState => {
         // Prerequisites
         // 1. mousedown on a node (i.e. startNodeUUID is confirmed)
@@ -256,12 +252,12 @@ export const usePipelineUiState = () => {
           // when deleting connections, it's impossible that user is also creating a new connection
           // thus, we always clean it up.
           newConnection.current = undefined;
-          return removeConnection(state, connectionToRemove);
+          return removeConnection(connectionToRemove);
         }
 
         // ==== check whether there already exists a connection
 
-        const endNodeStep = state.steps[endNodeUUID];
+        const endNodeStep = steps[endNodeUUID];
         let alreadyExists = endNodeStep.incoming_connections.includes(
           startNodeUUID
         );
@@ -271,12 +267,12 @@ export const usePipelineUiState = () => {
             "These steps are already connected. No new connection has been created.";
           const connectionToRemove = { ...newConnection.current };
           newConnection.current = undefined;
-          return { ...removeConnection(state, connectionToRemove), error };
+          return { ...removeConnection(connectionToRemove), error };
         }
 
         // ==== check whether connection will create a cycle in Pipeline graph
 
-        let connectionCreatesCycle = willCreateCycle(state.steps, [
+        let connectionCreatesCycle = willCreateCycle(steps, [
           startNodeUUID,
           endNodeUUID,
         ]);
@@ -287,20 +283,24 @@ export const usePipelineUiState = () => {
 
           const connectionToRemove = { ...newConnection.current };
           newConnection.current = undefined;
-          return { ...removeConnection(state, connectionToRemove), error };
+          return { ...removeConnection(connectionToRemove), error };
         }
 
         // ==== Start creating a connection
 
         // first find the index from the array, at the moment, the connection is incomplete
         newConnection.current = undefined;
+        if (startNodeUUID) {
+          setSteps((current) => {
+            current.steps[endNodeUUID].incoming_connections.push(startNodeUUID);
+            return current;
+          });
+        }
         return produce(state, (draft) => {
           const index = draft.connections.findIndex(
             (connection) => !connection.endNodeUUID
           );
           draft.connections[index].endNodeUUID = endNodeUUID;
-          if (startNodeUUID)
-            draft.steps[endNodeUUID].incoming_connections.push(startNodeUUID);
         });
       };
 
@@ -333,7 +333,7 @@ export const usePipelineUiState = () => {
         baseOffset = 15
       ) => {
         const stepPositions = new Set();
-        Object.values(state.steps).forEach((step) => {
+        Object.values(steps).forEach((step) => {
           // Make position hashable.
           stepPositions.add(String(step.meta_data.position));
         });
@@ -352,16 +352,10 @@ export const usePipelineUiState = () => {
        * ========================== action handlers
        */
       switch (action.type) {
-        case "SET_STEPS": {
-          return { ...state, steps: action.payload };
-        }
-        case "SAVE_STEPS": {
-          return withTimestamp({ ...state, steps: action.payload });
-        }
         case "CREATE_STEP": {
           const newStep = action.payload;
 
-          if (state.steps[newStep.uuid]) {
+          if (steps[newStep.uuid]) {
             return { ...state, error: "Step already exists" };
           }
 
@@ -370,58 +364,57 @@ export const usePipelineUiState = () => {
             newStep.meta_data.position
           );
 
-          const updated = produce(state, (draft) => {
-            draft.steps[newStep.uuid] = newStep;
+          setSteps((current) => {
+            current.steps[newStep.uuid] = newStep;
+            return current;
           });
 
-          return withTimestamp({
+          return {
             ...state,
-            ...updated,
             openedStep: newStep.uuid,
             subViewIndex: 0,
             shouldAutoFocus: true,
             ...selectSteps([newStep.uuid]),
-          });
+          };
         }
 
         case "DUPLICATE_STEPS": {
-          const newSteps = action.payload.map((step) => {
-            let newStep = {
-              ...state.steps[step],
-              uuid: uuidv4(),
-              file_path: state.steps[step].file_path.endsWith(".ipynb")
-                ? ""
-                : state.steps[step].file_path,
-              meta_data: {
-                ...state.steps[step].meta_data,
-                position: getNewStepPosition(
-                  state.steps[step].meta_data.position
-                ),
-              },
-            };
-
-            return newStep;
-          });
-          const updated = produce(state, (draft) => {
-            newSteps.forEach((step) => {
-              draft.steps[step.uuid] = step;
+          const newStepUuids: string[] = [];
+          setSteps((current) => {
+            action.payload.forEach((existingStepUuid) => {
+              const uuid = uuidv4();
+              newStepUuids.push(uuid);
+              current[uuid] = {
+                ...current[existingStepUuid],
+                uuid,
+                file_path: steps[existingStepUuid].file_path.endsWith(".ipynb")
+                  ? ""
+                  : steps[existingStepUuid].file_path,
+                meta_data: {
+                  ...steps[existingStepUuid].meta_data,
+                  position: getNewStepPosition(
+                    steps[existingStepUuid].meta_data.position
+                  ),
+                },
+              };
             });
+            return current;
           });
 
-          return withTimestamp({
+          return {
             ...state,
-            ...updated,
             shouldAutoFocus: true,
-            ...selectSteps(newSteps.map((s) => s.uuid)),
-          });
+            ...selectSteps(newStepUuids),
+          };
         }
 
         case "ASSIGN_FILE_TO_STEP": {
           const { filePath, stepUuid } = action.payload;
-          const updated = produce(state, (draft) => {
-            draft.steps[stepUuid].file_path = filePath;
+          setSteps((current) => {
+            current.steps[stepUuid].file_path = filePath;
+            return current;
           });
-          return withTimestamp({ ...state, ...updated });
+          return state;
         }
 
         case "CREATE_SELECTOR": {
@@ -539,7 +532,7 @@ export const usePipelineUiState = () => {
             // for each step perform intersect
             if (updatedSelector.active) {
               draft.selectedSteps = [];
-              Object.values(state.steps).forEach((step) => {
+              Object.values(steps).forEach((step) => {
                 // guard against ref existing, in case step is being added
                 const stepContainer = stepRefs.current[step.uuid];
                 if (stepContainer) {
@@ -582,17 +575,12 @@ export const usePipelineUiState = () => {
         }
 
         case "MAKE_CONNECTION": {
-          return withTimestamp(makeConnection(action.payload));
+          return makeConnection(action.payload);
         }
 
         case "REMOVE_CONNECTION": {
           newConnection.current = undefined;
-          // if endNodeUUID is undefined, it's an aborted new connection
-          // no need to send a request to delete it
-          const shouldSave = hasValue(action.payload.endNodeUUID);
-          const outcome = removeConnection(state, action.payload);
-
-          return shouldSave ? withTimestamp(outcome) : outcome;
+          return removeConnection(action.payload);
         }
 
         case "REMOVE_STEPS": {
@@ -602,14 +590,14 @@ export const usePipelineUiState = () => {
           const connectionsToDelete = stepsToDelete.reduce(
             (allConnections, uuidToDelete) => {
               // remove the connections between current step and its preceding nodes
-              const incomingConnections = state.steps[
+              const incomingConnections = steps[
                 uuidToDelete
               ].incoming_connections.map((startNodeUUID) => {
                 return { startNodeUUID, endNodeUUID: uuidToDelete };
               });
 
               // remove the connections between current step and its subsequent nodes
-              const outgoingConnections = Object.entries(state.steps).reduce(
+              const outgoingConnections = Object.entries(steps).reduce(
                 (all, [uuid, step]) => {
                   const isSubsequent = step.incoming_connections.includes(
                     uuidToDelete
@@ -634,36 +622,43 @@ export const usePipelineUiState = () => {
           );
           newConnection.current = undefined;
           const updatedState: PipelineUiState = connectionsToDelete.reduce(
-            (final, connection) => removeConnection(final, connection),
+            (_, connection) => {
+              return removeConnection(connection);
+            },
             state
           );
 
-          return produce(withTimestamp(updatedState), (draft) => {
+          setSteps((current) => {
             stepsToDelete.forEach(
-              (uuidToDelete) => delete draft.steps[uuidToDelete]
+              (uuidToDelete) => delete current[uuidToDelete]
             );
-
-            draft.openedStep = undefined;
-            // when removing a step, the selection of any step is also cancelled
-            // we can simply clean up state.selectedSteps, instead of remove them one by one
-            draft.selectedSteps = [];
+            return current;
           });
+
+          return {
+            ...updatedState,
+            openedStep: undefined,
+            selectedSteps: [],
+          };
         }
 
         case "SAVE_STEP_DETAILS": {
           const { replace, stepChanges, uuid } = action.payload;
-          // Mutate step with changes
-          return produce(withTimestamp(state), (draft) => {
+
+          setSteps((current) => {
             if (replace) {
               // Replace works on the top level keys that are provided
               Object.entries(stepChanges).forEach(([propKey, mutation]) => {
-                draft.steps[uuid][propKey] = mutation;
+                current[uuid][propKey] = mutation;
               });
             } else {
               // lodash merge mutates the object
-              merge(draft.steps[uuid], stepChanges);
+              merge(current[uuid], stepChanges);
             }
+            return current;
           });
+
+          return state;
         }
 
         case "SET_ERROR": {
@@ -706,7 +701,6 @@ export const usePipelineUiState = () => {
       x2: 0,
       y2: 0,
     },
-    steps: {},
     connections: [],
     selectedConnection: null,
     timestamp: undefined,

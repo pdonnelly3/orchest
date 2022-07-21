@@ -22,9 +22,9 @@ export const PipelineStepContextMenu = ({
 }: PipelineStepContextMenuProps) => {
   const { handleContextMenu, ...props } = usePipelineStepContextMenu(); // eslint-disable-line @typescript-eslint/no-unused-vars
   const { executeRun } = useInteractiveRunsContext();
-  const { isReadOnly } = usePipelineDataContext();
+  const { isReadOnly, steps } = usePipelineDataContext();
   const {
-    uiState: { steps, selectedSteps },
+    uiState: { selectedSteps },
     uiStateDispatch,
   } = usePipelineUiStateContext();
 
