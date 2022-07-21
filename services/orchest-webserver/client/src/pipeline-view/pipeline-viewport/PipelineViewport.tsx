@@ -51,6 +51,7 @@ const PipelineViewportComponent = React.forwardRef<
     environments,
     isFetchingPipelineJson,
     steps,
+    autoLayout,
   } = usePipelineDataContext();
 
   const {
@@ -67,7 +68,6 @@ const PipelineViewportComponent = React.forwardRef<
       isContextMenuOpen,
     },
     uiStateDispatch,
-    autoLayoutPipeline,
   } = usePipelineUiStateContext();
 
   const {
@@ -242,7 +242,7 @@ const PipelineViewportComponent = React.forwardRef<
       >
         {showIllustration && <Overlay />}
         {children}
-        <PipelineViewportContextMenu autoLayoutPipeline={autoLayoutPipeline} />
+        <PipelineViewportContextMenu />
       </PipelineCanvas>
     </div>
   );

@@ -13,17 +13,18 @@ import { usePipelineUiStateContext } from "../contexts/PipelineUiStateContext";
 import { SCALE_UNIT, useScaleFactor } from "../contexts/ScaleFactorContext";
 import { STEP_HEIGHT, STEP_WIDTH } from "../PipelineStep";
 
-type PipelineViewportContextMenuProps = { autoLayoutPipeline: () => void };
-
 export const PipelineViewportContextMenuProvider = ContextMenuContextProvider;
 
 export const usePipelineViewportContextMenu = useContextMenuContext;
 
-export const PipelineViewportContextMenu = ({
-  autoLayoutPipeline,
-}: PipelineViewportContextMenuProps) => {
+export const PipelineViewportContextMenu = () => {
   const { handleContextMenu, ...props } = usePipelineViewportContextMenu(); // eslint-disable-line @typescript-eslint/no-unused-vars
-  const { steps, isReadOnly, environments } = usePipelineDataContext();
+  const {
+    steps,
+    isReadOnly,
+    environments,
+    autoLayout,
+  } = usePipelineDataContext();
   const { getOnCanvasPosition } = useScaleFactor();
   const {
     uiState: { selectedSteps },
@@ -81,7 +82,7 @@ export const PipelineViewportContextMenu = ({
       title: "Auto layout pipeline",
       disabled: isReadOnly,
       action: () => {
-        autoLayoutPipeline();
+        autoLayout();
       },
     },
     {

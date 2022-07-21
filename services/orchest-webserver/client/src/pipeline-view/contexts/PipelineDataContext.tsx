@@ -7,13 +7,18 @@ import { useFetchEnvironments } from "@/hooks/useFetchEnvironments";
 import { useFetchPipelineJson } from "@/hooks/useFetchPipelineJson";
 import { siteMap } from "@/routingConfig";
 import { Environment, PipelineJson, StepsDict } from "@/types";
+import { layoutPipeline } from "@/utils/pipeline-layout";
 import { validatePipeline } from "@/utils/webserver-utils";
 import { hasValue, uuidv4 } from "@orchest/lib-utils";
 import React from "react";
 import { extractStepsFromPipelineJson, updatePipelineJson } from "../common";
 import { useFetchInteractiveRun } from "../hooks/useFetchInteractiveRun";
 import { useIsReadOnly } from "../hooks/useIsReadOnly";
+import { STEP_HEIGHT, STEP_WIDTH } from "../PipelineStep";
 import { usePipelineRefs } from "./PipelineRefsContext";
+
+const AUTO_LAYOUT_SPACING_FACTOR = 0.7;
+const AUTO_LAYOUT_GRID_MARGIN = 20;
 
 export type PipelineDataContextType = {
   disabled: boolean;
@@ -34,6 +39,7 @@ export type PipelineDataContextType = {
   isJobRun: boolean;
   steps: StepsDict;
   setSteps: React.Dispatch<React.SetStateAction<StepsDict>>;
+  autoLayout: () => void;
 };
 
 export const PipelineDataContext = React.createContext<PipelineDataContextType>(
@@ -136,6 +142,24 @@ export const PipelineDataContextProvider: React.FC = ({ children }) => {
     []
   );
 
+  const autoLayout = React.useCallback(() => {
+    setSteps((currentSteps) => {
+      const updatedSteps = layoutPipeline(
+        // Use the pipeline definition from the editor
+        currentSteps,
+        STEP_HEIGHT,
+        (1 + AUTO_LAYOUT_SPACING_FACTOR * (STEP_HEIGHT / STEP_WIDTH)) *
+          (STEP_WIDTH / STEP_HEIGHT),
+        1 + AUTO_LAYOUT_SPACING_FACTOR,
+        AUTO_LAYOUT_GRID_MARGIN,
+        AUTO_LAYOUT_GRID_MARGIN * 4, // don't put steps behind top buttons
+        AUTO_LAYOUT_GRID_MARGIN,
+        STEP_HEIGHT
+      );
+      return updatedSteps;
+    });
+  }, [setPipelineJson]);
+
   React.useEffect(() => {
     // `hash` is added from the first re-render.
     if (pipelineJson && !Boolean(pipelineJson.hash)) {
@@ -194,6 +218,7 @@ export const PipelineDataContextProvider: React.FC = ({ children }) => {
         steps,
         setSteps,
         isJobRun,
+        autoLayout,
       }}
     >
       {children}

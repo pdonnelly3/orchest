@@ -7,7 +7,7 @@ import Typography from "@mui/material/Typography";
 import { hasValue } from "@orchest/lib-utils";
 import React from "react";
 import { usePipelineCanvasContext } from "../contexts/PipelineCanvasContext";
-import { usePipelineUiStateContext } from "../contexts/PipelineUiStateContext";
+import { usePipelineDataContext } from "../contexts/PipelineDataContext";
 
 type MenuItemData =
   | {
@@ -32,7 +32,7 @@ export const PipelineViewingOptionsMenu = ({
   const menuRef = React.useRef<HTMLDivElement | null>(null);
 
   const { zoomIn, zoomOut, centerView } = usePipelineCanvasContext();
-  const { autoLayoutPipeline } = usePipelineUiStateContext();
+  const { autoLayout } = usePipelineDataContext();
 
   const menuItems: readonly MenuItemData[] = React.useMemo(
     () => [
@@ -58,11 +58,11 @@ export const PipelineViewingOptionsMenu = ({
       {
         type: "item",
         label: "Auto layout",
-        action: () => autoLayoutPipeline(),
+        action: () => autoLayout(),
         hotKey: `${osSpecificHotKey} shift o`,
       },
     ],
-    [autoLayoutPipeline, centerView, zoomIn, zoomOut]
+    [autoLayout, centerView, zoomIn, zoomOut]
   );
   return (
     <Menu

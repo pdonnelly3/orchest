@@ -1,5 +1,4 @@
 import { useForceUpdate } from "@/hooks/useForceUpdate";
-import { layoutPipeline } from "@/utils/pipeline-layout";
 import React from "react";
 import {
   PipelineUiState,
@@ -7,7 +6,6 @@ import {
   usePipelineUiState,
 } from "../hooks/usePipelineUiState";
 import { useRenderConnections } from "../hooks/useRenderConnections";
-import { STEP_HEIGHT, STEP_WIDTH } from "../PipelineStep";
 import { usePipelineDataContext } from "./PipelineDataContext";
 import { usePipelineRefs } from "./PipelineRefsContext";
 
@@ -21,8 +19,6 @@ export type PipelineUiStateContextType = {
     startNodeUUID: string;
     endNodeUUID: string | undefined;
   };
-  recalibrate: () => void;
-  autoLayoutPipeline: () => void;
 };
 
 export const PipelineUiStateContext = React.createContext<
@@ -72,40 +68,12 @@ export const PipelineUiStateContextProvider: React.FC = ({ children }) => {
     if (shouldForceRerender) forceUpdate();
   }, [shouldForceRerender, forceUpdate]);
 
-  const recalibrate = React.useCallback(() => {
-    // ensure that connections are re-rendered against the final positions of the steps
-    setPipelineJson((value) => value, true);
-  }, [setPipelineJson]);
-
-  const autoLayoutPipeline = React.useCallback(() => {
-    const spacingFactor = 0.7;
-    const gridMargin = 20;
-
-    setSteps((currentSteps) => {
-      const updatedSteps = layoutPipeline(
-        // Use the pipeline definition from the editor
-        currentSteps,
-        STEP_HEIGHT,
-        (1 + spacingFactor * (STEP_HEIGHT / STEP_WIDTH)) *
-          (STEP_WIDTH / STEP_HEIGHT),
-        1 + spacingFactor,
-        gridMargin,
-        gridMargin * 4, // don't put steps behind top buttons
-        gridMargin,
-        STEP_HEIGHT
-      );
-      return updatedSteps;
-    });
-  }, [setPipelineJson, steps, uiStateDispatch]);
-
   return (
     <PipelineUiStateContext.Provider
       value={{
         uiState,
         uiStateDispatch,
         instantiateConnection,
-        recalibrate,
-        autoLayoutPipeline,
       }}
     >
       {children}

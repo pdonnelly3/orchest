@@ -41,44 +41,12 @@ export const useSavePipelineJson = () => {
     [isReadOnly, projectUuid, pipelineUuid, setOngoingSaves]
   );
 
-  // const saveSteps = React.useCallback(
-  //   (steps: StepsDict) => {
-  //     setPipelineJson((currentPipelineJson) => {
-  //       if (!currentPipelineJson) return currentPipelineJson;
-  //       if (isReadOnly) {
-  //         console.error("savePipeline should be un-callable in readOnly mode.");
-  //         return;
-  //       }
-
-  //       const updatedPipelineJson = steps
-  //         ? updatePipelineJson(currentPipelineJson, steps)
-  //         : currentPipelineJson;
-
-  //       // validate pipelineJSON
-  //       const pipelineValidation = validatePipeline(updatedPipelineJson);
-
-  //       if (!pipelineValidation.valid) {
-  //         // Just show the first error
-  //         setAlert("Error", pipelineValidation.errors[0]);
-  //         return currentPipelineJson;
-  //       }
-
-  //       savePipelineJson(updatedPipelineJson);
-  //       return updatedPipelineJson;
-  //     });
-  //   },
-  //   [savePipelineJson]
-  // );
-
+  // If has is defined and changed, auto-save.
   const shouldSave = useHasChanged(
     pipelineJson?.hash,
     (prev, curr) => Boolean(prev) && prev !== curr
   );
 
-  console.log("DEV pipelineJson?.hash 🧩🧩🧩🧩: ", pipelineJson?.hash);
-
-  // If timestamp is changed, auto-save.
-  // check usePipelineUiState to see if the action return value is wrapped by withTimestamp
   React.useEffect(() => {
     if (shouldSave && pipelineJson) {
       savePipelineJson(pipelineJson);

@@ -26,7 +26,7 @@ const commandsString = Object.values(COMMANDS).join(", ");
 const inCanvasCommandsString = Object.values(IN_CANVAS_COMMANDS).join(", ");
 
 export const useHotKeysInPipelineEditor = () => {
-  const { isReadOnly, steps } = usePipelineDataContext();
+  const { isReadOnly, steps, autoLayout } = usePipelineDataContext();
   const {
     centerView,
     centerPipelineOrigin,
@@ -36,7 +36,6 @@ export const useHotKeysInPipelineEditor = () => {
   const {
     uiStateDispatch,
     uiState: { stepSelector, selectedSteps, selectedConnection },
-    autoLayoutPipeline,
   } = usePipelineUiStateContext();
   const [isHoverEditor, setIsHoverEditor] = React.useState(false);
   const {
@@ -72,7 +71,7 @@ export const useHotKeysInPipelineEditor = () => {
             zoomOut();
           }
           if (COMMANDS.AUTO_LAYOUT.includes(hotKeyEvent.key)) {
-            autoLayoutPipeline();
+            autoLayout();
           }
         },
       },
@@ -84,7 +83,7 @@ export const useHotKeysInPipelineEditor = () => {
       scheduleJob,
       centerView,
       centerPipelineOrigin,
-      autoLayoutPipeline,
+      autoLayout,
     ]
   );
 
