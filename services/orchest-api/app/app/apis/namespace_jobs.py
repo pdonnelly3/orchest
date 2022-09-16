@@ -1108,7 +1108,7 @@ class CreateJob(TwoPhaseFunction):
         else:
             raise ValueError("Can't define both cron_schedule and scheduled_start.")
 
-        self._verify_all_pipelines_have_valid_environments(job_spec["snapshot_uuid"])
+        # self._verify_all_pipelines_have_valid_environments(job_spec["snapshot_uuid"])
 
         job = {
             "uuid": job_spec["uuid"],
@@ -1145,14 +1145,16 @@ class CreateJob(TwoPhaseFunction):
 
         spec = copy.deepcopy(job_spec["pipeline_run_spec"])
         spec["pipeline_definition"] = job_spec["pipeline_definition"]
-        pipeline = construct_pipeline(**spec)
+        # pipeline = construct_pipeline(**spec)
 
         # This way all runs of a job will use the same environments. The
         # images to use will be retrieved through the JobImageMapping
         # model.
-        environments.lock_environment_images_for_job(
-            job_spec["uuid"], job_spec["project_uuid"], pipeline.get_environments()
-        )
+        # environments.lock_environment_images_for_job(
+        #     job_spec["uuid"],
+        #     job_spec["project_uuid"],
+        #     pipeline.get_environments()
+        # )
 
         self.collateral_kwargs["job_uuid"] = job_spec["uuid"]
         events.register_job_created(job["project_uuid"], job["uuid"])
